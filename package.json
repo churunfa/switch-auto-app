@@ -1,0 +1,25 @@
+{
+  "name": "switch-auto-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@logicflow/core": "^2.1.11",
+    "@logicflow/engine": "^0.1.1",
+    "@logicflow/extension": "^2.1.13",
+    "axios": "^1.13.2",
+    "dagre": "^0.8.5",
+    "element-plus": "^2.13.1",
+    "vue": "^3.5.24",
+    "vue-router": "4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "vite": "^7.2.4"
+  }
+}
