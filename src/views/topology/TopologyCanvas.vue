@@ -22,11 +22,17 @@
 
         <div class="canvas-ops">
           <div class="edit-toolbar">
-            <button class="btn-tool small-icon" @click="undo" title="Undo (Ctrl+Z)">↩ UNDO</button>
-            <button class="btn-tool small-icon" @click="redo" title="Redo (Ctrl+Y)">↪ REDO</button>
             <div class="divider"></div>
             <button class="btn-tool" @click="handleManualLayout">⚡ AUTO LAYOUT</button>
             <button class="btn-tool" @click="addNode">＋ INSERT NODE</button>
+            <div class="divider"></div>
+            <button
+                class="btn-solid-orange"
+                @click="handleExec"
+                :disabled="isExecuting"
+            >
+              {{ isExecuting ? 'EXECUTING...' : '▶ RUN DEBUG' }}
+            </button>
           </div>
           <div class="divider"></div>
           <button class="btn-ghost" @click="$emit('close')">CLOSE</button>
@@ -36,13 +42,11 @@
 
       <div class="flow-preview" ref="flowPreviewRef" @contextmenu.prevent>
         <div ref="container" class="lf-container"></div>
-
         <div class="canvas-hint">
           {{ selectedEdgeId ? '已选中连线：按Delete可删除' : '提示：点击上方按钮插入独立节点 • 拖拽连线连接节点 • Ctrl+C/V 复制粘贴' }}
         </div>
-
         <div
-            v-if="currentNodeId"
+            v-if="currentNodeId || selectedEdgeId"
             class="config-drawer"
             ref="drawerRef"
             :style="drawerStyle"
@@ -50,98 +54,118 @@
             @click.stop
         >
           <div class="drawer-header" @mousedown="startDrag">
-            <h3>节点参数配置 <span class="drag-hint">(按住拖动)</span></h3>
+            <h3>
+              {{ currentNodeId ? '节点参数配置' : '连线属性配置' }}
+              <span class="drag-hint">(按住拖动)</span>
+            </h3>
             <button class="close-btn" @click.stop="closeDrawer">×</button>
           </div>
 
           <div class="drawer-content">
-            <div v-if="isSpecialNode" class="special-hint">
-              <span class="icon">🔒</span>
-              <p>系统控制节点<br><span class="sub-text">无需配置任何参数</span></p>
+            <div v-if="currentNodeId">
+              <div v-if="isSpecialNode" class="special-hint">
+                <span class="icon">🔒</span>
+                <p>系统控制节点<br><span class="sub-text">ID: {{currentNodeId}}</span></p>
+              </div>
+
+              <div v-else class="form-container">
+                <div class="form-group">
+                  <label>节点名称 (Node Name)</label>
+                  <input type="text" v-model="currentNodeForm.nodeName" class="input-dark" placeholder="自定义节点展示名称" />
+                </div>
+                <div class="form-group">
+                  <label>操作类型 (Operation)</label>
+                  <select :value="currentNodeForm.baseOperate?.id" @change="handleOperateChange($event.target.value)" class="input-dark select-arrow">
+                    <option v-for="op in availableOperates" :key="op.id" :value="op.id">
+                      {{ op.name }}
+                    </option>
+                  </select>
+                </div>
+                <div class="divider-line"></div>
+                <div class="form-group">
+                  <div class="form-group">
+                    <label>循环次数 (Loop Count)</label>
+                    <input type="number" v-model.number="currentNodeForm.loopCnt" class="input-dark" placeholder="1" />
+                  </div>
+                </div>
+                <div>
+                  <div class="form-group row-center">
+                    <label>执行 (exec-ms)</label>
+                    <div class="switch-box">
+                      <input type="checkbox" id="exec-switch" v-model="currentNodeForm.exec" />
+                      <label for="exec-switch" class="toggle"></label>
+                    </div>
+                  </div>
+                  <div v-if="currentNodeForm.exec" class="form-group slide-in">
+                    <div class="input-wrapper">
+                      <input type="number" v-model.number="currentNodeForm.execHoldTime" class="input-dark" />
+                      <span class="suffix">Min: {{ currentNodeForm.baseOperate?.minExecTime || 0 }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="currentNodeForm.baseOperate?.needReset">
+                  <div class="form-group row-center" v-if="currentNodeForm.baseOperate?.needReset">
+                    <label>重置 (reset-ms)</label>
+                    <div class="switch-box">
+                      <input type="checkbox" id="reset-switch" v-model="currentNodeForm.reset" />
+                      <label for="reset-switch" class="toggle"></label>
+                    </div>
+                  </div>
+                  <div v-if="currentNodeForm.reset" class="form-group slide-in">
+                    <div class="input-wrapper">
+                      <input type="number" v-model.number="currentNodeForm.resetHoldTime" class="input-dark" />
+                      <span class="suffix">Min: {{ currentNodeForm.baseOperate?.minResetTime || 0 }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="divider-line"></div>
+                <div v-if="currentNodeForm.baseOperate?.paramSize > 0">
+                  <label class="section-title">动态参数 (PARAMS)</label>
+                  <div v-for="(pName, idx) in currentNodeForm.baseOperate.paramNames" :key="idx" class="form-group">
+                    <label>{{ pName }}</label>
+                    <input type="text" v-model="currentNodeForm.params[idx]" class="input-dark" :placeholder="currentNodeForm.baseOperate.initParams?.[idx] || 'Value'" />
+                  </div>
+                </div>
+                <div v-else class="empty-hint">此操作无额外动态参数</div>
+              </div>
             </div>
 
-            <div v-else class="form-container">
+            <div v-else-if="selectedEdgeId" class="form-container">
+              <div class="special-hint" style="margin-top: 10px; margin-bottom: 20px;">
+                <span class="icon" style="font-size: 2rem;">🔗</span>
+                <p>连线配置<br><span class="sub-text">ID: {{selectedEdgeId}}</span></p>
+              </div>
               <div class="form-group">
-                <label>操作名称 (Operation)</label>
-                <select
-                    :value="currentNodeForm.baseOperate?.id"
-                    @change="handleOperateChange($event.target.value)"
-                    class="input-dark select-arrow"
-                >
-                  <option v-for="op in availableOperates" :key="op.id" :value="op.id">
-                    {{ op.name }}
+                <label>连线名称 (Edge Name)</label>
+                <input type="text" v-model="currentEdgeForm.edgeName" class="input-dark" placeholder="输入连线名称" />
+              </div>
+              <div class="divider-line"></div>
+              <div class="form-group">
+                <label>起始节点 (From)</label>
+                <select v-model="currentEdgeForm.sourceNodeId" @change="updateEdgeConnection" class="input-dark select-arrow">
+                  <option v-for="node in nodeOptions" :key="node.id" :value="node.id">
+                    {{ node.name }}
                   </option>
                 </select>
               </div>
-
-              <div class="divider-line"></div>
-
+              <div class="center-icon">⬇</div>
               <div class="form-group">
-                <div class="form-group">
-                  <label>循环次数 (Loop Count)</label>
-                  <input type="number" v-model.number="currentNodeForm.loopCnt" class="input-dark" placeholder="1" />
-                </div>
+                <label>目标节点 (To)</label>
+                <select v-model="currentEdgeForm.targetNodeId" @change="updateEdgeConnection" class="input-dark select-arrow">
+                  <option v-for="node in nodeOptions" :key="node.id" :value="node.id">
+                    {{ node.name }}
+                  </option>
+                </select>
               </div>
-
-              <div>
-                <div class="form-group row-center">
-                  <label>执行 (exec-ms)</label>
-                  <div class="switch-box">
-                    <input type="checkbox" id="exec-switch" v-model="currentNodeForm.exec" />
-                    <label for="exec-switch" class="toggle"></label>
-                  </div>
-                </div>
-
-                <div v-if="currentNodeForm.exec" class="form-group slide-in">
-                  <div class="input-wrapper">
-                    <input type="number" v-model.number="currentNodeForm.execHoldTime" class="input-dark" />
-                    <span class="suffix">Min: {{ currentNodeForm.baseOperate?.minExecTime || 0 }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div v-if="currentNodeForm.baseOperate?.needReset">
-                <div class="form-group row-center" v-if="currentNodeForm.baseOperate?.needReset">
-                  <label>重置 (reset-ms)</label>
-                  <div class="switch-box">
-                    <input type="checkbox" id="reset-switch" v-model="currentNodeForm.reset" />
-                    <label for="reset-switch" class="toggle"></label>
-                  </div>
-                </div>
-
-                <div v-if="currentNodeForm.reset" class="form-group slide-in">
-                  <div class="input-wrapper">
-                    <input type="number" v-model.number="currentNodeForm.resetHoldTime" class="input-dark" />
-                    <span class="suffix">Min: {{ currentNodeForm.baseOperate?.minResetTime || 0 }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="divider-line"></div>
-
-              <div v-if="currentNodeForm.baseOperate?.paramSize > 0">
-                <label class="section-title">动态参数 (PARAMS)</label>
-                <div
-                    v-for="(pName, idx) in currentNodeForm.baseOperate.paramNames"
-                    :key="idx"
-                    class="form-group"
-                >
-                  <label>{{ pName }}</label>
-                  <input
-                      type="text"
-                      v-model="currentNodeForm.params[idx]"
-                      class="input-dark"
-                      :placeholder="currentNodeForm.baseOperate.initParams?.[idx] || 'Value'"
-                  />
-                </div>
-              </div>
-              <div v-else class="empty-hint">此操作无额外动态参数</div>
+              <div class="divider-line" style="margin-top: 20px;"></div>
+              <button class="btn-delete-block" @click="deleteCurrentEdge">
+                🗑️ 删除此连线
+              </button>
             </div>
           </div>
         </div>
       </div>
     </div>
-
     <div v-else class="empty-canvas">
       <div class="scanner-circle"><span class="icon">🕸️</span></div>
       <p>NO GRAPH DATA LOADED</p>
@@ -171,11 +195,13 @@ const selectedEdgeId = ref(null);
 let lf = null;
 let resizeObserver = null;
 
-// --- 🔧 表单状态管理 ---
+// --- 🔧 状态管理 ---
 const currentNodeId = ref(null);
 let isProgrammaticUpdate = false;
+const isExecuting = ref(false);
 
 const getDefaultFormState = () => ({
+  nodeName: '',
   baseOperate: {},
   params: [],
   execHoldTime: 0,
@@ -186,68 +212,61 @@ const getDefaultFormState = () => ({
 });
 const currentNodeForm = reactive(getDefaultFormState());
 
+const currentEdgeForm = reactive({
+  edgeName: '',
+  sourceNodeId: '',
+  targetNodeId: ''
+});
+const nodeOptions = ref([]);
+
 // --- 🌟 拖拽逻辑 ---
 const drawerRef = ref(null);
 const drawerPos = reactive({ x: null, y: null });
 const isDragging = ref(false);
 const dragOffset = { x: 0, y: 0 };
-
 const drawerStyle = computed(() => {
-  if (drawerPos.x === null || drawerPos.y === null) {
-    return { top: '20px', right: '20px', left: 'auto' };
-  }
+  if (drawerPos.x === null || drawerPos.y === null) return { top: '20px', right: '20px', left: 'auto' };
   return { top: `${drawerPos.y}px`, left: `${drawerPos.x}px`, right: 'auto', transform: 'none' };
 });
-
 const startDrag = (e) => {
   if (!drawerRef.value || !flowPreviewRef.value) return;
   isDragging.value = true;
-  const drawerRect = drawerRef.value.getBoundingClientRect();
-  const parentRect = flowPreviewRef.value.getBoundingClientRect();
-
+  const rect = drawerRef.value.getBoundingClientRect();
+  dragOffset.x = e.clientX - rect.left;
+  dragOffset.y = e.clientY - rect.top;
   if (drawerPos.x === null) {
-    drawerPos.x = drawerRect.left - parentRect.left;
-    drawerPos.y = drawerRect.top - parentRect.top;
+    const pRect = flowPreviewRef.value.getBoundingClientRect();
+    drawerPos.x = rect.left - pRect.left;
+    drawerPos.y = rect.top - pRect.top;
   }
-  dragOffset.x = e.clientX - drawerRect.left;
-  dragOffset.y = e.clientY - drawerRect.top;
-
   document.addEventListener('mousemove', onDrag);
   document.addEventListener('mouseup', stopDrag);
 };
-
 const onDrag = (e) => {
-  if (!isDragging.value || !flowPreviewRef.value) return;
-  const parentRect = flowPreviewRef.value.getBoundingClientRect();
-  let newX = e.clientX - parentRect.left - dragOffset.x;
-  let newY = e.clientY - parentRect.top - dragOffset.y;
-  if (newY < 0) newY = 0;
-  if (newX < 0) newX = 0;
-  const maxW = parentRect.width - 50;
-  const maxH = parentRect.height - 50;
-  if (newX > maxW) newX = maxW;
-  if (newY > maxH) newY = maxH;
-  drawerPos.x = newX;
-  drawerPos.y = newY;
+  if (!isDragging.value) return;
+  const pRect = flowPreviewRef.value.getBoundingClientRect();
+  let newX = e.clientX - pRect.left - dragOffset.x;
+  let newY = e.clientY - pRect.top - dragOffset.y;
+  if(newY<0) newY=0; if(newX<0) newX=0;
+  drawerPos.x = newX; drawerPos.y = newY;
+};
+const stopDrag = () => { isDragging.value = false; document.removeEventListener('mousemove', onDrag); document.removeEventListener('mouseup', stopDrag); };
+
+// --- 计算属性 & 辅助函数 ---
+const availableOperates = computed(() => props.baseOperates.filter(op => !['START', '开始', 'END', '结束'].includes((op.name || '').toUpperCase())));
+const isSpecialNode = computed(() => ['START', '开始', 'END', '结束'].includes((currentNodeForm.baseOperate?.name || '').toUpperCase()));
+
+const closeDrawer = () => {
+  currentNodeId.value = null;
+  selectedEdgeId.value = null;
+  isProgrammaticUpdate = false;
 };
 
-const stopDrag = () => {
-  isDragging.value = false;
-  document.removeEventListener('mousemove', onDrag);
-  document.removeEventListener('mouseup', stopDrag);
+const validateGraphData = (nodes, edges) => {
+  if (!nodes || nodes.length === 0) return '图数据为空，无法执行操作';
+  return null;
 };
 
-// --- 计算属性 ---
-const availableOperates = computed(() => {
-  return props.baseOperates.filter(op => !['START', '开始', 'END', '结束'].includes((op.name || '').toUpperCase()));
-});
-
-const isSpecialNode = computed(() => {
-  const name = (currentNodeForm.baseOperate?.name || '').toUpperCase();
-  return ['START', '开始', 'END', '结束'].includes(name);
-});
-
-// --- 🛡️ 辅助函数 ---
 const checkPathExist = (startId, endId, graphData) => {
   const adj = {};
   graphData.edges.forEach(e => {
@@ -277,7 +296,6 @@ const getMaxId = (items) => {
   return ids.length > 0 ? Math.max(...ids) : 0;
 };
 
-// 🌟 辅助：获取新的自增整数 ID (字符串形式)
 const getNewIntegerId = (items) => {
   const maxId = getMaxId(items);
   return String(maxId + 1);
@@ -289,14 +307,21 @@ const UI_CONFIG = {
   colors: {
     start: { main: '#00DC82', bg: 'rgba(0, 220, 130, 0.15)', border: '#00DC82' },
     end:   { main: '#FF5460', bg: 'rgba(255, 84, 96, 0.15)', border: '#FF5460' },
-    node:  { main: '#4F64FF', bg: 'rgba(79, 100, 255, 0.10)', border: '#4F64FF' }
+    node:  { main: '#4F64FF', bg: 'rgba(79, 100, 255, 0.10)', border: '#4F64FF' },
+    exec:  { main: '#FF9F43', bg: 'rgba(255, 159, 67, 0.15)', border: '#FF9F43' },
+    reset: { main: '#00E5FF', bg: 'rgba(0, 229, 255, 0.15)', border: '#00E5FF' },
+    mixed: { main: '#A55FEE', bg: 'rgba(165, 95, 238, 0.15)', border: '#A55FEE' }
   }
 };
 
-const getNodeTheme = (text) => {
-  const t = (text || '').toUpperCase();
+const getNodeTheme = (props) => {
+  const baseName = props.baseOperate?.name || props.nodeName || '';
+  const t = baseName.toUpperCase();
   if (['START', '开始', 'BEGIN'].includes(t)) return UI_CONFIG.colors.start;
   if (['END', '结束', 'STOP'].includes(t)) return UI_CONFIG.colors.end;
+  if (props.exec && props.reset) return UI_CONFIG.colors.mixed;
+  if (props.exec) return UI_CONFIG.colors.exec;
+  if (props.reset) return UI_CONFIG.colors.reset;
   return UI_CONFIG.colors.node;
 };
 
@@ -304,12 +329,12 @@ class LinearNodeView extends RectNode {
   getLabelShape() { return h('g'); }
   getShape() {
     const { model } = this.props;
-    // 🌟 解构获取 id 用于显示
     const { x, y, width, height, isSelected, id } = model;
     const properties = model.getProperties();
     const baseName = properties.baseOperate?.name || 'Unknown';
-    const textValue = model.text?.value || baseName;
-    const theme = getNodeTheme(baseName);
+    const textValue = model.text?.value || properties.nodeName || baseName;
+    const theme = getNodeTheme(properties);
+
     const xPos = x - width / 2;
     const yPos = y - height / 2;
     const strokeColor = isSelected ? '#FFFFFF' : theme.border;
@@ -319,27 +344,18 @@ class LinearNodeView extends RectNode {
     const colorStrip = h('rect', { x: xPos + 4, y: yPos + 4, width: 4, height: height - 8, rx: 2, fill: theme.main, pointerEvents: 'none' });
     const glowRect = h('rect', { x: xPos, y: yPos, width, height, rx: UI_CONFIG.radius, fill: theme.bg, stroke: 'none', pointerEvents: 'none' });
 
-    // 🌟 核心修改：根据节点类型决定显示图标还是 ID
     let iconContent;
     const t = baseName.toUpperCase();
     const isSpecial = ['START', '开始', 'END', '结束'].includes(t);
 
     if (isSpecial) {
-      // 特殊节点显示图标
       let iconPath = '';
       if (['START', '开始'].includes(t)) iconPath = 'M 6 4 L 14 10 L 6 16 Z';
       else iconPath = 'M 6 6 L 14 6 L 14 14 L 6 14 Z';
       iconContent = h('path', { d: iconPath, fill: theme.main });
     } else {
-      // 🌟 业务节点：在图标位置居中显示 ID
       iconContent = h('text', {
-        x: 10, y: 10, // 20x20 容器中心
-        fill: theme.main,
-        fontSize: 12,
-        fontWeight: 'bold',
-        textAnchor: 'middle',
-        dominantBaseline: 'central',
-        style: 'font-family: monospace; pointer-events: none;'
+        x: 10, y: 10, fill: theme.main, fontSize: 12, fontWeight: 'bold', textAnchor: 'middle', dominantBaseline: 'central', style: 'font-family: monospace; pointer-events: none;'
       }, [String(id)]);
     }
 
@@ -349,10 +365,7 @@ class LinearNodeView extends RectNode {
     ]);
 
     const textLabel = h('text', {
-      x: xPos + 48, y: yPos + height / 2,
-      fontSize: 12,
-      fill: '#ECECEC', fontWeight: 'bold', pointerEvents: 'none', dominantBaseline: 'middle',
-      style: 'text-shadow: 0 1px 2px rgba(0,0,0,0.8); font-family: sans-serif;'
+      x: xPos + 48, y: yPos + height / 2, fontSize: 12, fill: '#ECECEC', fontWeight: 'bold', pointerEvents: 'none', dominantBaseline: 'middle', style: 'text-shadow: 0 1px 2px rgba(0,0,0,0.8); font-family: sans-serif;'
     }, [textValue]);
 
     return h('g', {}, [bgRect, glowRect, colorStrip, iconGroup, textLabel]);
@@ -362,20 +375,19 @@ class LinearNodeView extends RectNode {
 class LinearNodeModel extends RectNodeModel {
   setAttributes() { this.width = UI_CONFIG.width; this.height = UI_CONFIG.height; }
   getTextStyle() { return { fontSize: 0, fill: 'transparent', opacity: 0 }; }
+
   initNodeData(data) {
     super.initNodeData(data);
     if (!this.properties.baseOperate) {
-      this.properties.baseOperate = { name: data.text?.value || data.text || 'Node', id: 0 };
+      this.properties.baseOperate = { name: data.text?.value || 'Node', id: 0 };
     }
-    const props = this.properties;
-    const baseName = props.baseOperate.name || 'Node';
-    let suffix = '';
-    if (props.exec && props.reset) suffix = '(EXEC/RESET)';
-    else if (props.exec) suffix = '(EXEC)';
-    else if (props.reset) suffix = '(RESET)';
-    const fullName = `${baseName}${suffix ? ` ${suffix}` : ''}`;
-    this.text = { value: fullName, x: data.x, y: data.y };
+    if (!this.properties.nodeName) {
+      this.properties.nodeName = this.properties.baseOperate.name;
+    }
+    const displayName = this.properties.nodeName;
+    this.text = { value: displayName, x: data.x, y: data.y };
   }
+
   getDefaultAnchor() {
     const { x, y, width, id, properties } = this;
     const t = (properties.baseOperate?.name || '').toUpperCase();
@@ -384,200 +396,30 @@ class LinearNodeModel extends RectNodeModel {
     if (!['END', '结束'].includes(t)) anchors.push({ x: x + width/2, y, id: `${id}_out`, type: 'right', edgeAddable: true });
     return anchors;
   }
+
+  // 🔥 修改2：目标锚点校验 (进)
   getConnectedTargetRules() {
     const rules = super.getConnectedTargetRules();
-    rules.push({ message: '非法连接：只能连接到节点的[左侧]锚点', validate: (s, t, sa, ta) => ta && ta.type === 'left' });
+    rules.push({
+      message: '操作禁止：只能连接到节点的[左侧]锚点',
+      validate: (s, t, sa, ta) => ta && ta.type === 'left' // 必须连入左边
+    });
     rules.push({ message: '非法连接：检测到闭环，系统不支持循环依赖', validate: (s, t) => !checkPathExist(t.id, s.id, this.graphModel.modelToGraphData()) });
     return rules;
   }
-}
 
-// --- 初始化与事件 ---
-const initLF = () => {
-  if (!container.value || !container.value.clientWidth) return;
-  if (lf) { try{ lf.destroy(); }catch(e){} lf = null; }
-
-  const plugins = [Extension.SelectionSelect, Extension.Bezier, Extension.Snapshot].filter(Boolean);
-  lf = new LogicFlow({
-    container: container.value,
-    config: {
-      maxZoom: 1.1,
-      minZoom: 0.5,
-      // 🌟 核心配置：设置全局 ID 生成器，确保 API 添加或拖拽时使用数字 ID
-      idGenerator: (type) => {
-        if (!lf) return '1';
-        const { nodes, edges } = lf.getGraphData();
-        const collection = type === 'process-node' ? nodes : edges;
-        return getNewIntegerId(collection);
+  // 🔥 修改2：起始锚点校验 (出)
+  getConnectedSourceRules() {
+    const rules = super.getConnectedSourceRules();
+    rules.push({
+      message: '操作禁止：仅允许从节点[右侧]锚点引出连线',
+      validate: (source, target, sourceAnchor) => {
+        return sourceAnchor && sourceAnchor.type === 'right'; // 必须从右边引出
       }
-    },
-    grid: { size: 20, visible: true, type: 'mesh', config: { color: '#1a1a1a', thickness: 1 } },
-    background: { color: 'transparent' },
-    edgeType: 'bezier',
-    hoverOutline: false,
-    adjustEdge: false,
-    plugins: plugins,
-    keyboard: {
-      enabled: true,
-      shortcuts: [
-        {
-          keys: ["delete", "backspace"],
-          callback: () => {
-            const activeTag = document.activeElement.tagName;
-            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)) return;
-            const elements = lf.getSelectElements(true);
-            lf.clearSelectElements();
-            elements.edges.forEach(edge => lf.deleteEdge(edge.id));
-            elements.nodes.forEach(node => lf.deleteNode(node.id));
-            if (currentNodeId.value && elements.nodes.find(n => n.id === currentNodeId.value)) closeDrawer();
-            selectedEdgeId.value = null;
-          }
-        },
-        { keys: ["ctrl + z", "meta + z"], callback: () => lf.undo() },
-        { keys: ["ctrl + y", "meta + y"], callback: () => lf.redo() },
-        // 🌟 显式绑定复制粘贴，确保功能可用
-        { keys: ["ctrl + c", "meta + c"], callback: () => { lf.copy(); return false; } },
-        { keys: ["ctrl + v", "meta + v"], callback: () => { lf.paste(); return false; } }
-      ]
-    }
-  });
-
-  lf.register({ type: 'process-node', view: LinearNodeView, model: LinearNodeModel });
-  lf.setTheme({
-    bezier: { stroke: '#5c6b8f', strokeWidth: 2, adjustLineColor: '#00ff88' },
-    'edge:hover': { stroke: '#fff', strokeWidth: 3 },
-    'edge:selected': { stroke: '#00ff88', strokeWidth: 3 },
-    anchor: { r: 4, fill: '#050608', stroke: '#4f64ff', hover: { fill: '#00ff88', stroke: '#fff', r: 6 } }
-  });
-
-  lf.on('connection:not-allowed', (data) => ElMessage.warning(data.msg));
-
-  // --- 🌟 核心监听1：边创建拦截（防UUID） ---
-  lf.on('edge:add', ({ data }) => {
-    if (!/^\d+$/.test(data.id)) {
-      const { edges } = lf.getGraphData();
-      // 排除自身，计算合法最大ID
-      const validEdges = edges.filter(e => e.id !== data.id && /^\d+$/.test(e.id));
-      const newId = getNewIntegerId(validEdges);
-
-      lf.deleteEdge(data.id);
-      lf.addEdge({
-        id: newId,
-        sourceNodeId: data.sourceNodeId,
-        targetNodeId: data.targetNodeId,
-        type: data.type,
-        text: data.text?.value || ''
-      });
-    }
-  });
-
-  // --- 🌟 核心监听2：节点创建拦截（兼容复制粘贴生成的UUID） ---
-  lf.on('node:add', ({ data }) => {
-    // 如果是粘贴产生的非数字 ID
-    if (!/^\d+$/.test(data.id)) {
-      // 延迟执行，等待关联的边也被粘贴进来
-      setTimeout(() => {
-        const node = lf.graphModel.getNodeModelById(data.id);
-        // 二次确认ID仍然非法
-        if (node && !/^\d+$/.test(node.id)) {
-          const { nodes } = lf.getGraphData();
-          const validNodes = nodes.filter(n => n.id !== data.id && /^\d+$/.test(n.id));
-          const newId = getNewIntegerId(validNodes);
-
-          // changeNodeId 会自动更新关联边的 source/target
-          lf.changeNodeId(data.id, newId);
-        }
-      }, 50);
-    }
-  });
-
-  lf.on('node:click', ({ data }) => {
-    if (currentNodeId.value === data.id) return;
-    if (currentNodeId.value) syncFormToNode();
-
-    selectedEdgeId.value = null;
-    isProgrammaticUpdate = true;
-    currentNodeId.value = data.id;
-
-    const nodeModel = lf.graphModel.getNodeModelById(String(data.id));
-    const liveProps = nodeModel ? nodeModel.getProperties() : data.properties;
-    const storedProps = JSON.parse(JSON.stringify(liveProps || {}));
-    const newForm = getDefaultFormState();
-
-    if (storedProps.baseOperate && storedProps.baseOperate.id) {
-      const fullOp = props.baseOperates.find(op => op.id == storedProps.baseOperate.id);
-      if (fullOp) storedProps.baseOperate = { ...fullOp, ...storedProps.baseOperate };
-    }
-    newForm.baseOperate = storedProps.baseOperate || {};
-    if (storedProps.exec !== undefined) newForm.exec = !!storedProps.exec;
-    if (storedProps.reset !== undefined) newForm.reset = !!storedProps.reset;
-    if (storedProps.loopCnt !== undefined) newForm.loopCnt = storedProps.loopCnt;
-    if (storedProps.execHoldTime !== undefined) newForm.execHoldTime = storedProps.execHoldTime;
-    if (storedProps.resetHoldTime !== undefined) newForm.resetHoldTime = storedProps.resetHoldTime;
-    newForm.params = Array.isArray(storedProps.params) ? [...storedProps.params] : [];
-    const size = newForm.baseOperate?.paramSize || 0;
-    while (newForm.params.length < size) newForm.params.push('');
-
-    Object.assign(currentNodeForm, newForm);
-
-    nextTick(() => {
-      lf.graphModel.selectElementById(data.id);
-      setTimeout(() => { isProgrammaticUpdate = false; }, 20);
     });
-  });
-
-  lf.on('edge:click', ({ data }) => { selectedEdgeId.value = data.id; closeDrawer(); });
-  lf.on('blank:click', () => {
-    if (isDragging.value) return;
-    selectedEdgeId.value = null;
-    closeDrawer();
-  });
-
-  renderGraph();
-};
-
-const closeDrawer = () => {
-  if(currentNodeId.value) syncFormToNode();
-  currentNodeId.value = null;
-  if(lf) lf.graphModel.selectElementById(null);
-};
-
-const syncFormToNode = () => {
-  if (!lf || !currentNodeId.value) return;
-  const plainData = JSON.parse(JSON.stringify(toRaw(currentNodeForm)));
-  let suffix = '';
-  if (plainData.exec && plainData.reset) suffix = '(EXEC/RESET)';
-  else if (plainData.exec) suffix = '(EXEC)';
-  else if (plainData.reset) suffix = '(RESET)';
-  const baseName = plainData.baseOperate?.name || 'Node';
-  const fullName = `${baseName}${suffix ? ` ${suffix}` : ''}`;
-
-  const model = lf.graphModel.getNodeModelById(currentNodeId.value);
-  if (model) {
-    model.setProperties(plainData);
-    model.updateText(fullName);
+    return rules;
   }
-};
-
-watch(currentNodeForm, () => {
-  if (isProgrammaticUpdate) return;
-  syncFormToNode();
-}, { deep: true });
-
-const undo = () => lf && lf.undo();
-const redo = () => lf && lf.redo();
-
-const handleOperateChange = (newOpId) => {
-  const selectedOp = props.baseOperates.find(op => op.id == newOpId);
-  if (!selectedOp) return;
-  currentNodeForm.baseOperate = { ...selectedOp };
-  currentNodeForm.execHoldTime = selectedOp.minExecTime || 0;
-  currentNodeForm.resetHoldTime = selectedOp.minResetTime || 0;
-  const size = selectedOp.paramSize || 0;
-  if (selectedOp.initParams && selectedOp.initParams.length > 0) currentNodeForm.params = [...selectedOp.initParams];
-  else currentNodeForm.params = new Array(size).fill('');
-  if (currentNodeForm.baseOperate.needReset === false) currentNodeForm.reset = false;
-};
+}
 
 const calcSafeLayout = (nodes, edges) => {
   const g = new dagre.graphlib.Graph();
@@ -590,22 +432,21 @@ const calcSafeLayout = (nodes, edges) => {
       const pos = g.node(String(n.nodeId));
       const props = { ...n };
       if (!props.baseOperate) props.baseOperate = { name: 'Node', id: 0 };
-      let suffix = '';
-      if (props.exec && props.reset) suffix = '(EXEC/RESET)';
-      else if (props.exec) suffix = '(EXEC)';
-      else if (props.reset) suffix = '(RESET)';
-      const displayText = `${props.baseOperate.name}${suffix ? ` ${suffix}` : ''}`;
+      if(!props.nodeName) props.nodeName = props.baseOperate.name;
+      let cleanName = props.nodeName || '';
+      cleanName = cleanName.replace(/\s+\(EXEC\/RESET\)$/, '').replace(/\s+\(EXEC\)$/, '').replace(/\s+\(RESET\)$/, '');
       return {
         id: String(n.nodeId), type: 'process-node',
         x: pos ? pos.x : 150 + i*50, y: pos ? pos.y : 150 + i*50,
-        text: displayText,
-        properties: props
+        text: cleanName,
+        properties: { ...props, nodeName: cleanName }
       };
     }),
     edges: edges.map((e, i) => ({
       id: e.edgeId ? String(e.edgeId) : String(i + 1),
       type: 'bezier', sourceNodeId: String(e.fromNodeId), targetNodeId: String(e.nextNodeId),
-      text: e.text || ''
+      text: e.edgeName || '',
+      properties: { edgeName: e.edgeName || '' }
     }))
   };
 };
@@ -614,162 +455,285 @@ const renderGraph = () => {
   if (!lf) return;
   let nodes = props.graph?.combinationNodes || [];
   let edges = props.graph?.combinationEdges || [];
-  if (nodes.length === 0 && lf.getGraphData().nodes.length > 0) {
+
+  // 🔥 修改1：如果图数据为空，初始化仅创建一个开始节点
+  if (nodes.length === 0 && lf.getGraphData().nodes.length === 0) {
+    nodes = [{
+      nodeId: 1,
+      nodeName: '开始',
+      baseOperate: { name: 'START', id: -1 }, // 模拟系统START操作
+      exec: false, reset: false, loopCnt: 1
+    }];
+    edges = []; // 确保没有连线，也没有结束节点
+  } else if (nodes.length === 0 && lf.getGraphData().nodes.length > 0) {
+    // 保持原有的 Snapshot 恢复逻辑
     const d = lf.getGraphData();
     nodes = d.nodes.map(n => ({...n.properties, nodeId: n.id}));
     edges = d.edges.map(e => ({fromNodeId: e.sourceNodeId, nextNodeId: e.targetNodeId, edgeId: e.id}));
   }
+
   const data = calcSafeLayout(nodes, edges);
   lf.render(data);
   nextTick(() => { if(data.nodes.length) { lf.translateCenter(); lf.zoom(0.9); } });
 };
 
-const addNode = () => {
-  if (!lf) return;
-  const { nodes } = lf.getGraphData();
-  const defaultOp = availableOperates.value[0] || { name: 'ACTION', id: 999, minExecTime: 100, minResetTime: 0, paramSize: 0 };
+// --- 初始化与事件 (保持不变) ---
+const initLF = () => {
+  if (!container.value || !container.value.clientWidth) return;
+  if (lf) { try{ lf.destroy(); }catch(e){} lf = null; }
 
-  const newNodeVO = getDefaultFormState();
-  Object.assign(newNodeVO, {
-    baseOperate: defaultOp,
-    params: defaultOp.initParams ? [...defaultOp.initParams] : new Array(defaultOp.paramSize || 0).fill(''),
-    execHoldTime: defaultOp.minExecTime || 100
+  const plugins = [Extension.SelectionSelect, Extension.Bezier, Extension.Snapshot].filter(Boolean);
+  lf = new LogicFlow({
+    container: container.value,
+    config: {
+      maxZoom: 1.1, minZoom: 0.5, adjustEdge: true, adjustEdgeStartAndEnd: true,
+      idGenerator: (type) => {
+        if (!lf) return '1';
+        const { nodes, edges } = lf.getGraphData();
+        const collection = type === 'process-node' ? nodes : edges;
+        return getNewIntegerId(collection);
+      }
+    },
+    grid: { size: 20, visible: true, type: 'mesh', config: { color: '#1a1a1a', thickness: 1 } },
+    background: { color: 'transparent' }, edgeType: 'bezier', hoverOutline: false, adjustEdge: false, plugins: plugins,
+    keyboard: {
+      enabled: true,
+      shortcuts: [
+        { keys: ["delete", "backspace"], callback: () => {
+            const activeTag = document.activeElement.tagName;
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)) return;
+            const elements = lf.getSelectElements(true);
+            lf.clearSelectElements();
+            elements.edges.forEach(edge => lf.deleteEdge(edge.id));
+            elements.nodes.forEach(node => lf.deleteNode(node.id));
+            if (currentNodeId.value && elements.nodes.find(n => n.id === currentNodeId.value)) closeDrawer();
+            if (selectedEdgeId.value && elements.edges.find(e => e.id === selectedEdgeId.value)) closeDrawer();
+            selectedEdgeId.value = null;
+          }},
+        { keys: ["ctrl + z", "meta + z"], callback: () => lf.undo() },
+        { keys: ["ctrl + y", "meta + y"], callback: () => lf.redo() },
+        { keys: ["ctrl + c", "meta + c"], callback: () => { lf.copy(); return false; } },
+        { keys: ["ctrl + v", "meta + v"], callback: () => { lf.paste(); return false; } }
+      ]
+    }
   });
 
-  let startX = 200;
-  let startY = 200;
-  if (nodes.length > 0) {
-    const rightMostNode = nodes.reduce((prev, curr) => (curr.x > prev.x ? curr : prev), nodes[0]);
-    startX = rightMostNode.x + 220;
-    startY = rightMostNode.y;
-  }
-
-  // 🌟 使用全局配置的 idGenerator 自动生成数字 ID
-  const newNode = lf.addNode({
-    type: 'process-node',
-    x: startX,
-    y: startY,
-    text: defaultOp.name,
-    properties: newNodeVO
+  lf.register({ type: 'process-node', view: LinearNodeView, model: LinearNodeModel });
+  // 设置主题和事件监听 (保持不变)...
+  lf.setTheme({
+    bezier: { stroke: '#5c6b8f', strokeWidth: 2, adjustLineColor: '#00ff88' },
+    'edge:hover': { stroke: '#fff', strokeWidth: 3 },
+    'edge:selected': { stroke: '#00ff88', strokeWidth: 3 },
+    anchor: { r: 4, fill: '#050608', stroke: '#4f64ff', hover: { fill: '#00ff88', stroke: '#fff', r: 6 } },
+    edgeAdjust: { r: 4, fill: '#fff', stroke: '#00ff88', strokeWidth: 2 }
   });
 
-  selectedEdgeId.value = null;
-  nextTick(() => {
+  lf.on('connection:not-allowed', (data) => ElMessage.warning(data.msg));
+  lf.on('edge:add', ({ data }) => {
+    if (!/^\d+$/.test(data.id)) {
+      const { edges } = lf.getGraphData();
+      const validEdges = edges.filter(e => e.id !== data.id && /^\d+$/.test(e.id));
+      const newId = getNewIntegerId(validEdges);
+      const edgeName = data.text?.value || '';
+      lf.deleteEdge(data.id);
+      lf.addEdge({ id: newId, sourceNodeId: data.sourceNodeId, targetNodeId: data.targetNodeId, type: data.type, text: edgeName, properties: { edgeName } });
+    }
+  });
+
+  lf.on('node:add', ({ data }) => {
+    if (!/^\d+$/.test(data.id)) {
+      setTimeout(() => {
+        const node = lf.graphModel.getNodeModelById(data.id);
+        if (node && !/^\d+$/.test(node.id)) {
+          const { nodes } = lf.getGraphData();
+          const validNodes = nodes.filter(n => n.id !== data.id && /^\d+$/.test(n.id));
+          const newId = getNewIntegerId(validNodes);
+          lf.changeNodeId(data.id, newId);
+          const newNodeModel = lf.graphModel.getNodeModelById(newId);
+          if (newNodeModel) newNodeModel.setProperties({ _refreshTs: Date.now() });
+        }
+      }, 50);
+    }
+  });
+
+  lf.on('node:click', ({ data }) => {
+    if (currentNodeId.value === data.id) return;
+    if (currentNodeId.value) syncFormToNode();
+    selectedEdgeId.value = null;
     isProgrammaticUpdate = true;
-    lf.graphModel.selectElementById(newNode.id);
-    lf.focusOnNode(newNode.id);
-    currentNodeId.value = newNode.id;
-    Object.assign(currentNodeForm, getDefaultFormState());
-    Object.assign(currentNodeForm, newNodeVO);
-    setTimeout(() => { isProgrammaticUpdate = false; }, 20);
-  });
-};
-
-const validateGraphData = (nodes, edges) => {
-  const edgeMap = { in: {}, out: {} };
-  nodes.forEach(n => { edgeMap.in[n.id] = 0; edgeMap.out[n.id] = 0; });
-  edges.forEach(e => {
-    if (edgeMap.out[e.sourceNodeId] !== undefined) edgeMap.out[e.sourceNodeId]++;
-    if (edgeMap.in[e.targetNodeId] !== undefined) edgeMap.in[e.targetNodeId]++;
-  });
-
-  for (const node of nodes) {
-    const props = node.properties || {};
-    const name = (props.baseOperate?.name || node.text?.value || '').toUpperCase();
-    const isStart = ['START', '开始'].includes(name);
-    const isEnd = ['END', '结束'].includes(name);
-    const inCount = edgeMap.in[node.id];
-    const outCount = edgeMap.out[node.id];
-
-    if (isStart) {
-      if (inCount > 0) return `Start节点(${name}) 不允许有入边`;
-      if (outCount === 0) return `Start节点(${name}) 必须有出边`;
-    } else if (isEnd) {
-      if (outCount > 0) return `End节点(${name}) 不允许有出边`;
-      if (inCount === 0) return `End节点(${name}) 必须有入边`;
-    } else {
-      if (inCount === 0) return `中间节点(${name}) 必须有入边`;
-      if (outCount === 0) return `中间节点(${name}) 必须有出边`;
-      if (!props.exec && !props.reset) {
-        return `配置错误：中间节点 [${name}] 必须开启 '执行(exec)' 或 '重置(reset)' 至少一项`;
-      }
+    currentNodeId.value = data.id;
+    const nodeModel = lf.graphModel.getNodeModelById(String(data.id));
+    const liveProps = nodeModel ? nodeModel.getProperties() : data.properties;
+    const storedProps = JSON.parse(JSON.stringify(liveProps || {}));
+    const newForm = getDefaultFormState();
+    if (storedProps.baseOperate && storedProps.baseOperate.id) {
+      const fullOp = props.baseOperates.find(op => op.id == storedProps.baseOperate.id);
+      if (fullOp) storedProps.baseOperate = { ...fullOp, ...storedProps.baseOperate };
     }
-  }
-  return null;
-};
-
-const saveData = () => {
-  if (!lf) return;
-  if (currentNodeId.value) syncFormToNode();
-  const raw = lf.getGraphData();
-  const errorMsg = validateGraphData(raw.nodes, raw.edges);
-  if (errorMsg) {
-    ElMessage.error(errorMsg);
-    return;
-  }
-
-  // --- 🌟 核心4：保存时双重清洗 Edge ID (非空/唯一/数字) ---
-  const usedIds = new Set();
-  const validEdges = [];
-  const invalidEdges = [];
-
-  // 1. 优先保留合法数字 ID
-  raw.edges.forEach(e => {
-    if (/^\d+$/.test(e.id)) {
-      const idNum = parseInt(e.id);
-      if (!usedIds.has(idNum)) {
-        usedIds.add(idNum);
-        validEdges.push({ ...e, id: String(idNum) });
-        return;
-      }
-    }
-    invalidEdges.push(e); // 收集非法或重复 ID
-  });
-
-  // 2. 为非法/重复 ID 分配新值
-  let nextId = 1;
-  const getNextId = () => {
-    while(usedIds.has(nextId)) nextId++;
-    usedIds.add(nextId);
-    return nextId;
-  };
-
-  const resultEdges = [];
-  validEdges.forEach(e => resultEdges.push({
-    edgeId: parseInt(e.id),
-    fromNodeId: parseInt(e.sourceNodeId),
-    nextNodeId: parseInt(e.targetNodeId),
-    text: e.text?.value || ''
-  }));
-
-  // 修复无效边
-  invalidEdges.forEach(e => {
-    const newId = getNextId();
-    resultEdges.push({
-      edgeId: newId,
-      fromNodeId: parseInt(e.sourceNodeId),
-      nextNodeId: parseInt(e.targetNodeId),
-      text: e.text?.value || ''
+    newForm.baseOperate = storedProps.baseOperate || {};
+    let rawName = storedProps.nodeName || newForm.baseOperate.name || 'Node';
+    rawName = rawName.replace(/\s+\(EXEC\/RESET\)$/, '').replace(/\s+\(EXEC\)$/, '').replace(/\s+\(RESET\)$/, '');
+    newForm.nodeName = rawName;
+    if (storedProps.exec !== undefined) newForm.exec = !!storedProps.exec;
+    if (storedProps.reset !== undefined) newForm.reset = !!storedProps.reset;
+    if (storedProps.loopCnt !== undefined) newForm.loopCnt = storedProps.loopCnt;
+    if (storedProps.execHoldTime !== undefined) newForm.execHoldTime = storedProps.execHoldTime;
+    if (storedProps.resetHoldTime !== undefined) newForm.resetHoldTime = storedProps.resetHoldTime;
+    newForm.params = Array.isArray(storedProps.params) ? [...storedProps.params] : [];
+    const size = newForm.baseOperate?.paramSize || 0;
+    while (newForm.params.length < size) newForm.params.push('');
+    Object.assign(currentNodeForm, newForm);
+    nextTick(() => {
+      lf.graphModel.selectElementById(data.id);
+      setTimeout(() => { isProgrammaticUpdate = false; }, 20);
     });
   });
 
+  lf.on('edge:click', ({ data }) => {
+    if (currentNodeId.value) syncFormToNode();
+    currentNodeId.value = null;
+    selectedEdgeId.value = data.id;
+    isProgrammaticUpdate = true;
+    const { nodes } = lf.getGraphData();
+    nodeOptions.value = nodes.map(n => ({
+      id: n.id,
+      name: `${n.properties?.nodeName || n.text?.value || 'Node'} (ID:${n.id})`
+    }));
+    currentEdgeForm.edgeName = data.properties?.edgeName || data.text?.value || '';
+    currentEdgeForm.sourceNodeId = data.sourceNodeId;
+    currentEdgeForm.targetNodeId = data.targetNodeId;
+    nextTick(() => { setTimeout(() => { isProgrammaticUpdate = false; }, 20); });
+  });
+
+  lf.on('blank:click', () => {
+    if (isDragging.value) return;
+    selectedEdgeId.value = null;
+    closeDrawer();
+  });
+
+  renderGraph();
+};
+
+const syncFormToNode = () => {
+  if (!lf || !currentNodeId.value) return;
+  const plainData = JSON.parse(JSON.stringify(toRaw(currentNodeForm)));
+  const cleanName = plainData.nodeName || plainData.baseOperate?.name || 'Node';
+  const model = lf.graphModel.getNodeModelById(currentNodeId.value);
+  if (model) {
+    model.setProperties({ ...plainData, nodeName: cleanName });
+    model.updateText(cleanName);
+  }
+};
+
+watch(currentEdgeForm, (val) => {
+  if (isProgrammaticUpdate || !selectedEdgeId.value || !lf) return;
+  const model = lf.graphModel.getEdgeModelById(selectedEdgeId.value);
+  if (model) {
+    model.setProperties({ edgeName: val.edgeName });
+    model.updateText(val.edgeName);
+  }
+}, { deep: true });
+
+watch(currentNodeForm, () => {
+  if (isProgrammaticUpdate) return;
+  syncFormToNode();
+}, { deep: true });
+
+const undo = () => lf && lf.undo();
+const redo = () => lf && lf.redo();
+
+const handleOperateChange = (newOpId) => {
+  const selectedOp = props.baseOperates.find(op => op.id == newOpId);
+  if (!selectedOp) return;
+  const oldOpName = currentNodeForm.baseOperate?.name;
+  const currentUserNodeName = currentNodeForm.nodeName;
+  currentNodeForm.baseOperate = { ...selectedOp };
+  if (!currentUserNodeName || currentUserNodeName === oldOpName) {
+    currentNodeForm.nodeName = selectedOp.name;
+  }
+  currentNodeForm.execHoldTime = selectedOp.minExecTime || 0;
+  currentNodeForm.resetHoldTime = selectedOp.minResetTime || 0;
+  const size = selectedOp.paramSize || 0;
+  if (selectedOp.initParams && selectedOp.initParams.length > 0) currentNodeForm.params = [...selectedOp.initParams];
+  else currentNodeForm.params = new Array(size).fill('');
+  if (currentNodeForm.baseOperate.needReset === false) currentNodeForm.reset = false;
+};
+
+const deleteCurrentEdge = () => {
+  if (!lf || !selectedEdgeId.value) return;
+  lf.deleteEdge(selectedEdgeId.value);
+  selectedEdgeId.value = null;
+  closeDrawer();
+  ElMessage.success("连线已删除");
+};
+
+const updateEdgeConnection = () => {
+  if (!lf || !selectedEdgeId.value) return;
+  const oldEdgeId = selectedEdgeId.value;
+  const { sourceNodeId, targetNodeId, edgeName } = currentEdgeForm;
+  if (sourceNodeId === targetNodeId) return ElMessage.warning("不能连接自身");
+
+  const { edges } = lf.getGraphData();
+  const isOldIdInteger = !isNaN(parseInt(oldEdgeId));
+  let newId = oldEdgeId;
+  if (!isOldIdInteger) {
+    const otherEdges = edges.filter(e => e.id !== oldEdgeId);
+    newId = String(getNewIntegerId(otherEdges));
+  }
+  lf.deleteEdge(oldEdgeId);
+  try {
+    const newEdge = lf.addEdge({ id: newId, sourceNodeId, targetNodeId, text: edgeName, properties: { edgeName }, type: 'bezier' });
+    if (newEdge) {
+      selectedEdgeId.value = newEdge.id;
+      nextTick(() => lf.graphModel.selectElementById(newEdge.id));
+      ElMessage.success("连接关系已更新");
+    }
+  } catch (e) {
+    ElMessage.error("连接失败，可能违反连接规则");
+  }
+};
+
+const getFormattedGraphVO = () => {
+  if (!lf) return null;
+  if (currentNodeId.value) syncFormToNode();
+  const raw = lf.getGraphData();
+  const errorMsg = validateGraphData(raw.nodes, raw.edges);
+  if (errorMsg) { ElMessage.error(errorMsg); return null; }
+  const usedIds = new Set();
+  const validEdges = [];
+  const invalidEdges = [];
+  raw.edges.forEach(e => {
+    if (/^\d+$/.test(e.id)) {
+      const idNum = parseInt(e.id);
+      if (!usedIds.has(idNum)) { usedIds.add(idNum); validEdges.push({ ...e, id: String(idNum) }); return; }
+    }
+    invalidEdges.push(e);
+  });
+  let nextId = 1;
+  const getNextId = () => { while(usedIds.has(nextId)) nextId++; usedIds.add(nextId); return nextId; };
+  const resultEdges = [];
+  validEdges.forEach(e => resultEdges.push({ edgeId: parseInt(e.id), fromNodeId: parseInt(e.sourceNodeId), nextNodeId: parseInt(e.targetNodeId), edgeName: e.properties?.edgeName || e.text?.value || '' }));
+  invalidEdges.forEach(e => { const newId = getNextId(); resultEdges.push({ edgeId: newId, fromNodeId: parseInt(e.sourceNodeId), nextNodeId: parseInt(e.targetNodeId), edgeName: e.properties?.edgeName || e.text?.value || '' }); });
   const result = JSON.parse(JSON.stringify(props.graph));
   result.combinationNodes = raw.nodes.map(n => {
     const p = n.properties || {};
     return {
-      nodeId: parseInt(n.id),
-      baseOperate: p.baseOperate,
-      params: p.params || [],
-      execHoldTime: p.execHoldTime,
-      resetHoldTime: p.reset ? p.resetHoldTime : null,
-      loopCnt: p.loopCnt,
-      reset: !!p.reset,
-      exec: !!p.exec,
+      nodeId: parseInt(n.id), nodeName: p.nodeName || '', baseOperate: p.baseOperate, params: p.params || [],
+      execHoldTime: p.execHoldTime, resetHoldTime: p.reset ? p.resetHoldTime : 0, loopCnt: p.loopCnt, reset: !!p.reset, exec: !!p.exec,
     };
   });
   result.combinationEdges = resultEdges;
-  emit('save', result);
-  ElMessage.success('保存成功');
+  return result;
+};
+
+const saveData = () => { const result = getFormattedGraphVO(); if (result) { emit('save', result); ElMessage.success('保存成功'); } };
+const handleExec = async () => {
+  const graphVO = getFormattedGraphVO(); if (!graphVO) return;
+  isExecuting.value = true;
+  try {
+    const response = await fetch('http://localhost:8080/api/combination-graph/exec', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(graphVO) });
+    if (response.ok) { const res = await response.json(); if (res.success === true) ElMessage.success(res.msg || '指令下发成功'); else ElMessage.error(res.msg || '调试请求失败'); } else { ElMessage.error('网络请求错误: ' + response.status); }
+  } catch (error) { ElMessage.error('网络请求异常'); } finally { isExecuting.value = false; }
 };
 
 const handleManualLayout = () => {
@@ -777,21 +741,28 @@ const handleManualLayout = () => {
   const { nodes: rawNodes, edges: rawEdges } = lf.getGraphData();
   if (rawNodes.length === 0) return;
   const currentNodes = rawNodes.map(n => ({ ...n.properties, nodeId: n.id }));
-  const currentEdges = rawEdges.map(e => ({ edgeId: e.id, fromNodeId: e.sourceNodeId, nextNodeId: e.targetNodeId }));
+  const currentEdges = rawEdges.map(e => ({ edgeId: e.id, fromNodeId: e.sourceNodeId, nextNodeId: e.targetNodeId, edgeName: e.properties?.edgeName || e.text?.value }));
   const layoutData = calcSafeLayout(currentNodes, currentEdges);
   lf.render(layoutData);
   nextTick(() => { lf.translateCenter(); lf.zoom(0.9); });
   ElMessage.success('自动布局已更新');
 };
 
-onMounted(() => {
-  if (container.value) {
-    resizeObserver = new ResizeObserver((entries) => {
-      if (entries[0].contentRect.width > 0 && !lf && props.graph) initLF();
-    });
-    resizeObserver.observe(container.value);
-  }
-});
+const addNode = () => {
+  if (!lf || !container.value) return;
+  const defaultOp = availableOperates.value[0] || { name: 'ACTION', id: 999, minExecTime: 100, minResetTime: 0, paramSize: 0 };
+  const newNodeVO = getDefaultFormState();
+  Object.assign(newNodeVO, { baseOperate: defaultOp, nodeName: defaultOp.name, params: defaultOp.initParams ? [...defaultOp.initParams] : new Array(defaultOp.paramSize || 0).fill(''), execHoldTime: defaultOp.minExecTime || 100 });
+  const { transformModel } = lf.graphModel;
+  const width = container.value.clientWidth;
+  const height = container.value.clientHeight;
+  const startX = (-transformModel.TRANSLATE_X + width / 2) / transformModel.SCALE_X;
+  const startY = (-transformModel.TRANSLATE_Y + height / 2) / transformModel.SCALE_Y;
+  lf.addNode({ type: 'process-node', x: startX, y: startY, text: newNodeVO.nodeName, properties: newNodeVO });
+  selectedEdgeId.value = null;
+};
+
+onMounted(() => { if (container.value) { resizeObserver = new ResizeObserver((entries) => { if (entries[0].contentRect.width > 0 && !lf && props.graph) initLF(); }); resizeObserver.observe(container.value); } });
 watch(() => props.graph?.combination?.id, (v) => { if (v) nextTick(initLF); }, { immediate: true });
 onBeforeUnmount(() => { if (lf) lf.destroy(); resizeObserver?.disconnect(); document.removeEventListener('mousemove', onDrag); document.removeEventListener('mouseup', stopDrag); });
 </script>
@@ -800,23 +771,65 @@ onBeforeUnmount(() => { if (lf) lf.destroy(); resizeObserver?.disconnect(); docu
 /* 样式保持不变 */
 .canvas-area { background: #050608 radial-gradient(rgba(79, 100, 255, 0.05) 1px, transparent 1px); background-size: 30px 30px; display: flex; flex-direction: column; flex: 1; overflow: hidden; height: 100vh; position: relative; }
 .canvas-wrapper { height: 100%; display: flex; flex-direction: column; }
-.canvas-header { padding: 20px 30px; background: rgba(13, 15, 23, 0.9); border-bottom: 1px solid rgba(255,255,255,0.03); display: flex; justify-content: space-between; align-items: flex-start; z-index: 10; }
-.header-main-info { display: flex; flex-direction: column; gap: 12px; }
+.canvas-header { padding: 20px 30px; background: rgba(13, 15, 23, 0.9); border-bottom: 1px solid rgba(255,255,255,0.03); display: flex; justify-content: space-between; align-items: flex-start; z-index: 10; overflow-x: auto; }
+.header-main-info { display: flex; flex-direction: column; gap: 12px; flex: 1; min-width: 0; }
 .active-info { display: flex; align-items: center; gap: 12px; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #00ff88; }
 .pulsed { box-shadow: 0 0 10px #00ff88; animation: pulse 2s infinite; }
 .inline-edit-title { background: transparent; border: none; border-bottom: 1px solid transparent; color: #fff; font-size: 1.1rem; font-weight: bold; outline: none; width: 250px; }
 .inline-edit-title:focus { border-bottom-color: #4f64ff; }
 .proj-name { font-size: 0.75rem; color: #4f64ff; font-weight: bold; margin-left: 10px; }
-.description-edit-area { width: 450px; }
+.description-edit-area { width: auto; flex: 1; max-width: 600px; min-width: 200px; }
 .desc-label { font-size: 0.6rem; color: #444; font-weight: bold; letter-spacing: 1px; margin-bottom: 6px; display: block; }
 .inline-edit-desc { width: 100%; background: rgba(255, 255, 255, 0.02); border: 1px solid transparent; border-radius: 8px; color: #888; font-size: 0.85rem; padding: 10px; resize: none; outline: none; transition: 0.3s; line-height: 1.5; font-family: inherit; }
 .inline-edit-desc:focus { background: #000; border-color: rgba(79, 100, 255, 0.4); color: #ccc; }
-.canvas-ops { display: flex; align-items: center; gap: 12px; margin-top: 5px; }
+.canvas-ops { display: flex; align-items: center; gap: 12px; margin-top: 5px; flex-shrink: 0; }
 .edit-toolbar { display: flex; gap: 10px; align-items: center; }
 .btn-tool { background: rgba(79, 100, 255, 0.1); border: 1px solid rgba(79, 100, 255, 0.3); color: #4f64ff; padding: 6px 14px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; cursor: pointer; transition: 0.3s; white-space: nowrap; }
 .btn-tool:hover { background: #4f64ff; color: #fff; }
+.btn-solid-orange {
+  background: #ff9f43;
+  color: #000;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.3s;
+  white-space: nowrap;
+}
+.btn-solid-orange:hover:not(:disabled) { filter: brightness(1.1); }
+.btn-solid-orange:disabled { opacity: 0.6; cursor: not-allowed; }
 .small-icon { padding: 6px 10px; font-size: 1rem; min-width: 34px; }
+.btn-delete-block {
+  width: 100%;
+  background: rgba(255, 84, 96, 0.1);
+  border: 1px solid rgba(255, 84, 96, 0.3);
+  color: #ff5460;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+.btn-delete-block:hover {
+  background: rgba(255, 84, 96, 0.2);
+  border-color: #ff5460;
+}
+.center-icon {
+  text-align: center;
+  color: #4f64ff;
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin: -5px 0;
+  opacity: 0.8;
+}
 .btn-disabled { opacity: 0.3; cursor: not-allowed; background: rgba(255, 255, 255, 0.05); color: #555; border-color: #333; }
 .divider { width: 1px; height: 24px; background: #222; margin: 0 5px; }
 .btn-ghost { background: transparent; border: 1px solid #222; color: #888; padding: 8px 18px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; }
