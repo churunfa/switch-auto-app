@@ -162,10 +162,17 @@ const handleStop = async () => {
   flex-direction: column;
   height: 100%;
   user-select: none;
+  /* ✨ 修复点1：防止容器整体被撑大，强制内容限制在 100% 高度内 */
+  overflow: hidden;
 }
 
 /* 顶部信息栏 */
-.sidebar-info { padding: 15px 20px; border-bottom: 1px solid #111; }
+.sidebar-info {
+  padding: 15px 20px;
+  border-bottom: 1px solid #111;
+  /* ✨ 修复点2：防止头部被压缩 */
+  flex-shrink: 0;
+}
 .label-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .sidebar-info .label { font-size: 0.75rem; color: #444; font-weight: bold; letter-spacing: 1px; }
 .sidebar-info .count { background: #1a1a1a; color: #4f64ff; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
@@ -175,7 +182,15 @@ const handleStop = async () => {
 .mini-search:focus { border-color: #4f64ff; background: #000; }
 
 /* 列表滚动区 */
-.list-wrapper { flex: 1; overflow-y: auto; padding: 15px; scrollbar-width: thin; scrollbar-color: #222 transparent; }
+.list-wrapper {
+  flex: 1;
+  /* ✨ 修复点3 (核心)：必须设置 min-height: 0，否则 Flex 子项不会收缩，导致 overflow-y 失效 */
+  min-height: 0;
+  overflow-y: auto;
+  padding: 15px;
+  scrollbar-width: thin;
+  scrollbar-color: #222 transparent;
+}
 .list-wrapper::-webkit-scrollbar { width: 4px; }
 .list-wrapper::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
 
