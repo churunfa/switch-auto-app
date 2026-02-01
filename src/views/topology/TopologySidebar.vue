@@ -73,6 +73,7 @@
 
           <div class="card-footer">
             <span class="tag">{{ item.projectName }}</span>
+            <span class="tag">耗时:{{ item.minTime }}ms</span>
             <span class="time">ID: {{ String(item.id).padStart(3, '0') }}</span>
           </div>
         </div>

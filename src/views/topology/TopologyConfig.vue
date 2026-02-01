@@ -355,7 +355,7 @@ const submitCreate = async () => {
         minTime: 0
       },
       combinationNodes: [
-        { nodeId: 1, baseOperate: startOp, params: [], holdTime: 0, loopCnt: 1 },
+        { nodeId: 1, nodeName: '开始', baseOperates: [startOp], params: [[]], execHoldTime: 0, loopCnt: 1, resets:[false],autoResets:[false]},
       ],
       combinationEdges: []
     };
