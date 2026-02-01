@@ -118,10 +118,18 @@
                     </div>
 
                     <div class="form-group row-center" style="margin-top: 8px;" v-if="getOpConfig(opItem.baseOperateId)?.needReset">
-                      <label class="sub-label">重置操作 (Reset)</label>
+                      <label class="sub-label">重置操作 (reset)</label>
                       <div class="switch-box">
                         <input type="checkbox" :id="`reset-${opItem._key}`" v-model="opItem.isReset" />
                         <label :for="`reset-${opItem._key}`" class="toggle"></label>
+                      </div>
+                    </div>
+
+                    <div class="form-group row-center" style="margin-top: 8px;" v-if="getOpConfig(opItem.baseOperateId)?.needReset">
+                      <label class="sub-label">自动重置 (autoReset)</label>
+                      <div class="switch-box">
+                        <input type="checkbox" :id="`auto-reset-${opItem._key}`" v-model="opItem.isAutoReset" />
+                        <label :for="`auto-reset-${opItem._key}`" class="toggle"></label>
                       </div>
                     </div>
 
@@ -580,7 +588,7 @@ const renderGraph = () => {
     nodes = [{
       nodeId: 1, nodeName: '开始',
       baseOperates: [{ name: 'START', id: -1 }],
-      params: [[]], resets: [false], loopCnt: 1, execHoldTime: 0
+      params: [[]], resets: [false], autoResets: [false], loopCnt: 1, execHoldTime: 0
     }];
     edges = [];
   } else {
@@ -715,6 +723,7 @@ const initLF = () => {
     const ops = props.baseOperates || (props.baseOperate ? [props.baseOperate] : []);
     const paramsList = props.params || [];
     const resets = props.resets || (props.reset !== undefined ? [props.reset] : []);
+    const auto_resets = props.autoResets || (props.autoResets !== undefined ? [props.autoResets] : []);
 
     newForm.operationList = ops.map((op, idx) => {
       const p = Array.isArray(paramsList[idx]) ? [...paramsList[idx]] : [];
@@ -727,7 +736,8 @@ const initLF = () => {
         _key: Date.now() + Math.random() + idx,
         baseOperateId: op.id,
         params: p,
-        isReset: !!resets[idx]
+        isReset: !!resets[idx],
+        isAutoReset: !!auto_resets[idx]
       };
     });
 
@@ -773,6 +783,7 @@ const syncFormToNode = () => {
   const baseOperates = [];
   const params = [];
   const resets = [];
+  const autoResets = [];
 
   formRaw.operationList.forEach(item => {
     const opConfig = getOpConfig(item.baseOperateId);
@@ -780,6 +791,7 @@ const syncFormToNode = () => {
       baseOperates.push({ ...opConfig });
       params.push([...item.params]);
       resets.push(item.isReset);
+      autoResets.push(item.isAutoReset);
     }
   });
 
@@ -792,7 +804,7 @@ const syncFormToNode = () => {
       nodeName: finalNodeName,
       loopCnt: formRaw.loopCnt,
       execHoldTime: formRaw.execHoldTime,
-      baseOperates, params, resets
+      baseOperates, params, resets,autoResets
     });
     model.updateText(finalNodeName);
   }
@@ -806,7 +818,8 @@ const addOperation = () => {
     _key: Date.now() + Math.random(),
     baseOperateId: defaultOp.id,
     params: defaultOp.initParams ? [...defaultOp.initParams] : new Array(defaultOp.paramSize || 0).fill(''),
-    isReset: false
+    isReset: false,
+    isAutoReset: false
   });
 };
 
@@ -820,7 +833,10 @@ const handleOpTypeChange = (index, newId) => {
   const item = currentNodeForm.operationList[index];
   item.baseOperateId = newId;
   item.params = opConfig.initParams ? [...opConfig.initParams] : new Array(opConfig.paramSize || 0).fill('');
-  if (!opConfig.needReset) item.isReset = false;
+  if (!opConfig.needReset) {
+    item.isReset = false;
+    item.isAutoReset = false;
+  }
   if (index === 0 && (!currentNodeForm.nodeName || currentNodeForm.nodeName.trim() === '')) {
     currentNodeForm.nodeName = opConfig.name;
   }
@@ -877,6 +893,7 @@ const getFormattedGraphVO = () => {
       baseOperates: p.baseOperates || [],
       params: p.params || [],
       resets: p.resets || [],
+      autoResets: p.autoResets || [],
       execHoldTime: p.execHoldTime || 0,
       loopCnt: p.loopCnt || 1
     };
@@ -890,7 +907,7 @@ const getFormattedGraphVO = () => {
   return result;
 };
 
-const saveData = () => { const result = getFormattedGraphVO(); if (result) { emit('save', result); ElMessage.success('保存成功'); } };
+const saveData = () => { const result = getFormattedGraphVO(); if (result) { emit('save', result); } };
 const handleExec = async () => {
   const graphVO = getFormattedGraphVO(); if (!graphVO) return;
   isExecuting.value = true;
