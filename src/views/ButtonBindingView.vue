@@ -57,7 +57,7 @@
                 </div>
               </div>
               <div class="no-graph" v-else>
-                <span class="empty-state">{{ binding.graphId === -1 ? '未配置图' : '未绑定组合图' }}</span>
+                <span class="empty-state">{{ binding.graphId === -1 ? '未绑定拓扑配置' : '未绑定拓扑配置' }}</span>
               </div>
             </div>
 
@@ -67,7 +67,7 @@
                 @click.stop="toggleFunctionKey(binding)"
                 :class="{ 'active': binding.functionKey }"
               >
-                {{ binding.functionKey ? '关闭功能键' : '切换功能键' }}
+                {{ binding.functionKey ? '关闭功能键' : '设为功能键' }}
               </button>
               
               <button 
@@ -507,7 +507,7 @@ const handleSearchInput = () => {
 const getGraphCombinationName = (graphId) => {
   // 如果graphId为-1，返回特殊标识
   if (graphId === -1) {
-    return '未配置图';
+    return '未绑定拓扑配置';
   }
   const graph = availableGraphs.value.find(g => g.id === graphId);
   return graph ? graph.combinationName : `#${graphId}`;
