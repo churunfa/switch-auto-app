@@ -1,3 +1,5 @@
+<script setup>
+</script>
 <template>
   <div class="app-layout">
     <nav class="side-nav">
@@ -7,6 +9,9 @@
       </router-link>
       <router-link to="/topology" class="nav-item">
         <span class="nav-icon">🕸️</span> 拓扑图配置
+      </router-link>
+      <router-link to="/button-binding" class="nav-item">
+        <span class="nav-icon">🎮</span> 按键绑定
       </router-link>
       <router-link to="/yolo" class="nav-item">
         <span class="nav-icon">👁️</span> YOLO 识别

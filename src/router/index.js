@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import BaseOperate from '../views/BaseOperate.vue';
-import TopologyConfig from '../views/topology/TopologyConfig.vue' // 确保导入了新写的组件
+import TopologyConfig from '../views/topology/TopologyConfig.vue';
+import ButtonBindingView from '../views/ButtonBindingView.vue';
 
 const routes = [
     {
@@ -18,6 +19,12 @@ const routes = [
         name: 'TopologyConfig',
         component: TopologyConfig,
         meta: { title: '组合按键拓扑图' }
+    },
+    {
+        path: '/button-binding',
+        name: 'ButtonBinding',
+        component: ButtonBindingView,
+        meta: { title: '按键绑定管理' }
     },
     {
         path: '/yolo',
