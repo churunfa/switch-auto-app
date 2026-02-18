@@ -69,6 +69,15 @@
             >
               📋 JSON
             </button>
+            
+            <button
+                class="btn-action set-loop"
+                :disabled="isAnyTaskRunning && !item.asyncRunning"
+                @click.stop="handleSetLoop(item.id)"
+                title="设置为循环图"
+            >
+              🔁 写入硬件
+            </button>
           </div>
 
           <div class="card-footer">
@@ -149,6 +158,32 @@ const handleStop = async () => {
     emit('refresh-status');
   } catch (e) {
     ElMessage.error('停止指令发送失败');
+  }
+};
+
+const handleSetLoop = async (id) => {
+  try {
+    const response = await fetch(`http://localhost:8080/api/combination-graph/set-loop-graph/${id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result.success) {
+      ElMessage.success(result.message || '循环图配置已设置');
+    } else {
+      ElMessage.error(result.message || '循环图配置失败');
+    }
+  } catch (e) {
+    console.error('Set loop graph error:', e);
+    ElMessage.error(e.message || '循环图配置失败');
   }
 };
 </script>
@@ -258,6 +293,15 @@ const handleStop = async () => {
   border-color: rgba(0, 229, 255, 0.3);
 }
 .json-view:hover:not(:disabled) { background: #00e5ff; color: #000; box-shadow: 0 0 10px rgba(0, 229, 255, 0.3); }
+
+/* 设置循环图 (紫色) */
+.set-loop {
+  background: rgba(156, 39, 176, 0.1);
+  color: #9c27b0;
+  border-color: rgba(156, 39, 176, 0.3);
+}
+.set-loop:hover:not(:disabled) { background: #9c27b0; color: #fff; box-shadow: 0 0 10px rgba(156, 39, 176, 0.3); }
+.set-loop:disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(1); }
 
 /* 底部标签 */
 .card-footer { display: flex; justify-content: space-between; align-items: center; font-size: 0.65rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
