@@ -26,12 +26,12 @@ const routes = [
         component: ButtonBindingView,
         meta: { title: '按键绑定管理' }
     },
-    {
-        path: '/yolo',
-        name: 'Yolo',
-        component: () => import('../views/EmptyPage.vue'), // 预留
-        meta: { title: 'YOLO 自动执行' }
-    }
+    // {
+    //     path: '/yolo',
+    //     name: 'Yolo',
+    //     component: () => import('../views/EmptyPage.vue'), // 预留
+    //     meta: { title: 'YOLO 自动执行' }
+    // }
 ];
 
 const router = createRouter({
