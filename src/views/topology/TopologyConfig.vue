@@ -167,7 +167,7 @@ const vClickOutside = {
 };
 
 const API_BASE = getApiEndpoint('COMBINATION_GRAPH');
-const BASE_OP_API = getApiEndpoint('BASE_OPERATE_LIST');
+const BASE_OP_API = getApiEndpoint('BASE_OPERATE');
 
 // --- 数据状态 ---
 const projects = ref([]);
