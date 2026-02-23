@@ -98,7 +98,8 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { ElMessage } from "element-plus";
+import { ElMessage } from 'element-plus';
+import { getApiEndpoint } from '../../utils/api';
 
 const props = defineProps({
   combinations: {
@@ -134,8 +135,7 @@ const filteredList = computed(() => {
 
 const handleExec = async (id) => {
   try {
-    // 假设后端地址
-    await fetch(`http://localhost:8080/api/combination-graph/exec/${id}`, { method: 'POST' });
+    await fetch(getApiEndpoint('COMBINATION_GRAPH_EXEC') + `/${id}`, { method: 'POST' });
     ElMessage.success('执行指令已发送');
   } catch (e) {
     ElMessage.error('执行请求失败');
@@ -144,7 +144,7 @@ const handleExec = async (id) => {
 
 const handleAsyncExec = async (id) => {
   try {
-    await fetch(`http://localhost:8080/api/combination-graph/async-exec/${id}`, { method: 'POST' });
+    await fetch(getApiEndpoint('COMBINATION_GRAPH_ASYNC_EXEC') + `/${id}`, { method: 'POST' });
     // 触发父组件刷新状态，变为绿色运行态
     emit('refresh-status');
   } catch (e) {
@@ -154,7 +154,7 @@ const handleAsyncExec = async (id) => {
 
 const handleStop = async () => {
   try {
-    await fetch(`http://localhost:8080/api/combination-graph/stop-async-exec`, { method: 'POST' });
+    await fetch(getApiEndpoint('COMBINATION_GRAPH_STOP_ASYNC'), { method: 'POST' });
     emit('refresh-status');
   } catch (e) {
     ElMessage.error('停止指令发送失败');
@@ -163,7 +163,7 @@ const handleStop = async () => {
 
 const handleSetLoop = async (id) => {
   try {
-    const response = await fetch(`http://localhost:8080/api/combination-graph/set-loop-graph/${id}`, {
+    const response = await fetch(getApiEndpoint('COMBINATION_GRAPH_SET_LOOP') + `/${id}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

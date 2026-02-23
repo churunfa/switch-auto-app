@@ -238,6 +238,7 @@ import { ElMessage } from 'element-plus';
 import "element-plus/dist/index.css";
 import "@logicflow/core/dist/index.css";
 import "@logicflow/extension/lib/style/index.css";
+import { getApiEndpoint } from '../../utils/api';
 
 const props = defineProps({
   graph: { type: Object, default: null },
@@ -912,7 +913,7 @@ const handleExec = async () => {
   const graphVO = getFormattedGraphVO(); if (!graphVO) return;
   isExecuting.value = true;
   try {
-    const response = await fetch('http://localhost:8080/api/combination-graph/exec', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(graphVO) });
+    const response = await fetch(getApiEndpoint('COMBINATION_GRAPH_EXEC'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(graphVO) });
     if (response.ok) { ElMessage.success('指令下发成功'); } else { ElMessage.error('调试请求失败'); }
   } catch (error) { ElMessage.error('网络请求异常'); } finally { isExecuting.value = false; }
 };

@@ -246,8 +246,9 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
+import { getApiEndpoint } from '../utils/api';
 
-const API_BASE = 'http://localhost:8080/api/button-binding';
+const API_BASE = getApiEndpoint('BUTTON_BINDING');
 
 // 数据状态
 const buttonBindings = ref([]);
@@ -422,12 +423,12 @@ const unbindGraph = async (binding) => {
 // 加载可用的组合图
 const loadAvailableGraphs = async () => {
   try {
-    const COMBINATION_API = 'http://localhost:8080/api/combination-graph';
-    const res = await axios.get(`${COMBINATION_API}/all-combination`);
+    const combinationApiUrl = baseUrl + '/api/combination-graph';
+    const response = await axios.get(combinationApiUrl + '/all-combination');
     
-    if (res.data.success) {
+    if (response.data.success) {
       // 只展示指定的四个字段：id、projectName、combinationName、minTime
-      availableGraphs.value = res.data.data.map(combination => ({
+      availableGraphs.value = response.data.data.map(combination => ({
         id: combination.id,
         projectName: combination.projectName || '',
         combinationName: combination.combinationName || '',
@@ -443,7 +444,7 @@ const loadAvailableGraphs = async () => {
         { id: 3, projectName: '环境交互', combinationName: '环境交互序列', minTime: 150 }
       ];
     }
-  } catch (err) {
+  } catch (error) {
     // 异常时使用模拟数据
     availableGraphs.value = [
       { id: 1, projectName: '默认项目', combinationName: '基础移动组合', minTime: 100 },
@@ -479,7 +480,7 @@ const isGraphBound = (graphId) => {
 
 // 刷新组合图列表
 const refreshGraphList = async () => {
-  addLog('正在刷新组合图列表...', 'info');
+  console.log('正在刷新组合图列表...');
   await loadAvailableGraphs();
 };
 

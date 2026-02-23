@@ -66,6 +66,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import axios from 'axios';
 import {ElMessage, ElMessageBox} from "element-plus";
+import { getApiEndpoint } from '../../utils/api';
 
 const props = defineProps({
   projects: Array,
@@ -109,7 +110,7 @@ const stopTask = async () => {
     );
 
     // 用户点击了确定
-    const res = await axios.post('http://localhost:8080/api/combination-graph/stop-async-exec');
+    const res = await axios.post(getApiEndpoint('COMBINATION_GRAPH_STOP_ASYNC'));
     if (res.data.success || res.status === 200) {
       ElMessage.success('任务已成功下发停止指令');
       emit('refresh-status');

@@ -151,6 +151,7 @@ import TopologyHeader from './TopologyHeader.vue';
 import TopologySidebar from './TopologySidebar.vue';
 import TopologyCanvas from './TopologyCanvas.vue';
 import { ElMessage } from "element-plus";
+import { getApiEndpoint } from '../../utils/api';
 
 // --- 自定义指令 ---
 const vClickOutside = {
@@ -165,8 +166,8 @@ const vClickOutside = {
   },
 };
 
-const API_BASE = 'http://localhost:8080/api/combination-graph';
-const BASE_OP_API = 'http://localhost:8080/api/base-operate/all-base-operates';
+const API_BASE = getApiEndpoint('COMBINATION_GRAPH');
+const BASE_OP_API = getApiEndpoint('BASE_OPERATE_LIST');
 
 // --- 数据状态 ---
 const projects = ref([]);

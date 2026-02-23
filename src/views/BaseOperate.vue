@@ -101,8 +101,9 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import { getApiEndpoint } from '../utils/api';
 
-const API_BASE = 'http://localhost:8080/api/base-operate';
+const API_BASE = getApiEndpoint('BASE_OPERATE');
 const baseOperates = ref([]);
 const isConnected = ref(false);
 const logs = ref([]);
