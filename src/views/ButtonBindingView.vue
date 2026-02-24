@@ -422,9 +422,12 @@ const unbindGraph = async (binding) => {
 
 // 加载可用的组合图
 const loadAvailableGraphs = async () => {
+  console.log('开始加载组合图数据...');
   try {
-    const combinationApiUrl = baseUrl + '/api/combination-graph';
+    const combinationApiUrl = getApiEndpoint('COMBINATION_GRAPH');
+    console.log('组合图API地址:', combinationApiUrl);
     const response = await axios.get(combinationApiUrl + '/all-combination');
+    console.log('API响应:', response.data);
     
     if (response.data.success) {
       // 只展示指定的四个字段：id、projectName、combinationName、minTime
@@ -445,7 +448,9 @@ const loadAvailableGraphs = async () => {
       ];
     }
   } catch (error) {
+    console.error('加载组合图数据失败:', error);
     // 异常时使用模拟数据
+    console.log('使用模拟数据');
     availableGraphs.value = [
       { id: 1, projectName: '默认项目', combinationName: '基础移动组合', minTime: 100 },
       { id: 2, projectName: '战斗系统', combinationName: '战斗技能链', minTime: 200 },
