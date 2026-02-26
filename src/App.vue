@@ -13,6 +13,9 @@
       <router-link to="/button-binding" class="nav-item">
         <span class="nav-icon">🎮</span> 按键绑定
       </router-link>
+      <router-link to="/splatoon-graffiti" class="nav-item">
+        <span class="nav-icon">🎨</span> 斯普拉遁涂鸦绘制
+      </router-link>
 <!--      <router-link to="/yolo" class="nav-item">-->
 <!--        <span class="nav-icon">👁️</span> YOLO 识别-->
 <!--      </router-link>-->

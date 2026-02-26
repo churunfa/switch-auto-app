@@ -26,7 +26,8 @@ export function getApiEndpoint(path) {
             'BASE_OPERATE': '/api/base-operate',
             'COMBINATION_GRAPH': '/api/combination-graph',
             'COMBINATION_GRAPH_EXEC': '/api/combination-graph/exec',
-            'BUTTON_BINDING': '/api/button-binding'
+            'BUTTON_BINDING': '/api/button-binding',
+            'SPLATOON_GRAFFITI': '/api/splatoon-graffiti/draw'
         };
         
         let normalizedPath;

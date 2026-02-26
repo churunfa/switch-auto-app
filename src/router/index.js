@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import BaseOperate from '../views/BaseOperate.vue';
 import TopologyConfig from '../views/topology/TopologyConfig.vue';
 import ButtonBindingView from '../views/ButtonBindingView.vue';
+import SplatoonGraffiti from '../views/SplatoonGraffiti.vue';
 
 const routes = [
     {
@@ -25,6 +26,12 @@ const routes = [
         name: 'ButtonBinding',
         component: ButtonBindingView,
         meta: { title: '按键绑定管理' }
+    },
+    {
+        path: '/splatoon-graffiti',
+        name: 'SplatoonGraffiti',
+        component: SplatoonGraffiti,
+        meta: { title: '斯普拉遁涂鸦' }
     },
     // {
     //     path: '/yolo',
