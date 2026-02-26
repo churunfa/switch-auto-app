@@ -117,7 +117,7 @@ const isSingleActionKey = (ename) => ['RESET_ALL'].includes(ename);
 // 获取按键列表
 const fetchButtons = async () => {
   try {
-    const res = await axios.get(`${API_BASE}/all-base-operates`);
+    const res = await axios.get(API_BASE);
     if (res.data.success) {
       baseOperates.value = res.data.data.map(item => {
         // 新增逻辑：初始化时自动填充后端给的 initParams
