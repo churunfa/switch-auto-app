@@ -214,6 +214,7 @@ const currentGroupIndex = ref(0);
 const lastDrawnGroup = ref(-1);
 const gotoGroupIndex = ref(1);
 const drawingProgress = ref(0);
+const isDrawingFromSpecificGroup = ref(false);
 
 // 计算属性
 const pixelsPerGroup = computed(() => Math.floor(320 * 120 / groupCount.value));
@@ -225,13 +226,36 @@ const groupedData = computed(() => {
   const totalPixels = 320 * 120;
   const regularGroupSize = pixelsPerGroup.value;
   
+  // 蛇形分组逻辑：先将原始像素数据转换为蛇形顺序
+  const snakeOrderedData = [];
+  const width = 320;
+  const height = 120;
+  
+  // 按蛇形顺序重新排列像素数据
+  for (let y = 0; y < height; y++) {
+    if (y % 2 === 0) {
+      // 偶数行：从左到右
+      for (let x = 0; x < width; x++) {
+        const index = y * width + x;
+        snakeOrderedData.push(bitmapData.value[index]);
+      }
+    } else {
+      // 奇数行：从右到左
+      for (let x = width - 1; x >= 0; x--) {
+        const index = y * width + x;
+        snakeOrderedData.push(bitmapData.value[index]);
+      }
+    }
+  }
+  
+  // 然后按组大小分组
   for (let i = 0; i < groupCount.value; i++) {
     const startIndex = i * regularGroupSize;
     const endIndex = i === groupCount.value - 1 
       ? totalPixels 
       : startIndex + regularGroupSize;
     
-    groups.push(bitmapData.value.slice(startIndex, endIndex));
+    groups.push(snakeOrderedData.slice(startIndex, endIndex));
   }
   
   return groups;
@@ -345,6 +369,7 @@ function startDrawingFromBeginning() {
   isPaused.value = false;
   currentGroupIndex.value = 0;
   drawingProgress.value = 0;
+  isDrawingFromSpecificGroup.value = false;
   
   // 启动绘制循环
   continueDrawingLoop();
@@ -436,10 +461,20 @@ function continueDrawingLoop() {
 
 async function sendGroupToBackend(groupIndex, pixelData) {
   try {
+    // 计算组大小（每组像素数）
+    const groupSize = pixelsPerGroup.value;
+    
+    // 判断是否需要重置：当是第一次绘制（从第0组开始）或从指定组开始的第一组
+    const isReset = groupIndex === 0 || (isDrawingFromSpecificGroup.value && groupIndex === gotoGroupIndex.value - 1);
+    
     const response = await api.post('/api/splatoon-graffiti/draw', {
       groupIndex: groupIndex,
       pixelData: pixelData,
-      totalGroups: groupCount.value
+      totalGroups: groupCount.value,
+      reset: isReset,
+      groupSize: groupSize,
+      colCount: 320,
+      rowCount: 120
     });
     
     console.log('后端响应:', response);

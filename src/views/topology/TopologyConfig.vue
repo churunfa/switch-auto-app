@@ -347,7 +347,7 @@ const submitCreate = async () => {
       ElMessage.warning('Project Name and Graph Name are required.');
       return;
     }
-    const startOp = baseOperates.value.find(b => b.ename === 'START_EMPTY') || { id: -1, name: 'START' };
+    const startOp = baseOperates.value.find(b => b.ename === 'START_EMPTY') || {"ename":"START_EMPTY","id":25,"initParams":[],"minExecTime":0,"minResetTime":0,"name":"开始","needReset":false,"paramNames":[],"paramSize":0};
     payload = {
       combination: {
         projectName: newForm.value.projectName,
