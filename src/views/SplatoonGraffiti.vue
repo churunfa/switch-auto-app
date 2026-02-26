@@ -454,7 +454,7 @@ function continueDrawingLoop() {
     })
     .catch(error => {
       console.error('绘制过程中出错:', error);
-      alert('绘制失败: ' + error.message);
+      ElMessage.error('绘制失败: ' + error.message);
       stopDrawing();
     });
 }
@@ -478,6 +478,13 @@ async function sendGroupToBackend(groupIndex, pixelData) {
     });
     
     console.log('后端响应:', response);
+    
+    // 检查响应是否成功
+    if (!response.success) {
+      const errorMessage = response.message || '绘制失败';
+      throw new Error(errorMessage);
+    }
+    
     return response;
   } catch (error) {
     console.error('发送到后端失败:', error);

@@ -79,7 +79,15 @@ export async function apiRequest(path, options = {}) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        return await response.json();
+        const result = await response.json();
+        
+        // 检查业务逻辑是否成功
+        if (result && result.success === false) {
+            const errorMessage = result.message || '请求失败';
+            throw new Error(errorMessage);
+        }
+        
+        return result;
     } catch (error) {
         console.error('API request failed:', error);
         throw error;
