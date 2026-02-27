@@ -23,7 +23,8 @@ export function getApiEndpoint(path) {
         
         // 路径映射表 - 将简写映射到实际的API路径
         const pathMap = {
-            'BASE_OPERATE': '/api/base-operate/all-base-operates',
+            'ALL_BASE_OPERATE': '/api/base-operate/all-base-operates',
+            'EXEC_BASE_OPERATE': '/api/base-operate/exec-base-operate',
             'COMBINATION_GRAPH': '/api/combination-graph',
             'COMBINATION_GRAPH_EXEC': '/api/combination-graph/exec',
             'BUTTON_BINDING': '/api/button-binding',

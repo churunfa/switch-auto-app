@@ -392,23 +392,27 @@ function startDrawingFromBeginning() {
 
 function startDrawingFromGroup() {
   if (groupedData.value.length === 0) return;
-  
+
   // 验证输入范围
   if (gotoGroupIndex.value < 1 || gotoGroupIndex.value > groupCount.value) {
     alert('请输入有效的组号（1-' + groupCount.value + '）');
     return;
   }
-  
+
   const startIndex = gotoGroupIndex.value - 1;
-  
+
   isDrawing.value = true;
   isPaused.value = false;
   currentGroupIndex.value = startIndex;
   drawingProgress.value = (startIndex / groupedData.value.length) * 100;
-  
+
+  // ✅ 添加这行：标记为从指定组开始
+  isDrawingFromSpecificGroup.value = true;
+
   // 启动绘制循环
   continueDrawingLoop();
 }
+
 
 function pauseDrawing() {
   isPaused.value = true;

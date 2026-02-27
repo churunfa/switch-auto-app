@@ -103,7 +103,8 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { getApiEndpoint } from '../utils/api';
 
-const API_BASE = getApiEndpoint('BASE_OPERATE');
+const ALL_BASE_OPERATE = getApiEndpoint('ALL_BASE_OPERATE');
+const EXEC_BASE_OPERATE = getApiEndpoint('EXEC_BASE_OPERATE');
 const baseOperates = ref([]);
 const isConnected = ref(false);
 const logs = ref([]);
@@ -117,7 +118,7 @@ const isSingleActionKey = (ename) => ['RESET_ALL'].includes(ename);
 // 获取按键列表
 const fetchButtons = async () => {
   try {
-    const res = await axios.get(API_BASE);
+    const res = await axios.get(`${ALL_BASE_OPERATE}`);
     if (res.data.success) {
       baseOperates.value = res.data.data.map(item => {
         // 新增逻辑：初始化时自动填充后端给的 initParams
@@ -153,7 +154,7 @@ const handleAction = async (btn, reset) => {
 
   btn.loading = true;
   try {
-    const res = await axios.post(`${API_BASE}/exec-base-operate`, payload);
+    const res = await axios.post(`${EXEC_BASE_OPERATE}`, payload);
     if (res.data.success) {
       addLog(`指令 [${btn.name}] ${actionText} 执行成功`, 'success');
     } else {
