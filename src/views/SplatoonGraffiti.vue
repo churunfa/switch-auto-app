@@ -39,6 +39,20 @@
         <h2>⚙️ 配置选项</h2>
         <div class="grouping-controls">
           <div class="control-item">
+            <label>画面深浅 (阈值):</label>
+            <input
+                type="range"
+                min="0"
+                max="255"
+                v-model.number="blackThreshold"
+                class="slider"
+                @input="reProcessImage"
+            />
+            <span class="value-display" style="color: #eaff00">{{ blackThreshold }}</span>
+            <p class="input-hint">漫画空心调大，深色图太黑调小</p>
+          </div>
+
+          <div class="control-item">
             <label>绘制模式:</label>
             <div class="mode-switch-wrapper">
               <input type="checkbox" id="fastMode" v-model="fastMode" class="checkbox-input" />
@@ -128,7 +142,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { ElMessage } from 'element-plus';
 import { api } from '../utils/api.js';
 
@@ -139,6 +153,7 @@ const bitmapData = ref([]);
 const groupCount = ref(320);
 const fastMode = ref(false);
 const isLocalProcess = ref(false);
+const blackThreshold = ref(110); // —— 新增：滑块绑定的阈值 ——
 
 const isDrawing = ref(false);
 const isPaused = ref(false);
@@ -152,9 +167,9 @@ let drawTimer = null;
 // --- 核心逻辑：快速模式与分组联动 ---
 watch(fastMode, (newVal) => {
   if (newVal) {
-    groupCount.value = 1; // 开启快速模式，分组强行归 1
+    groupCount.value = 1;
   } else {
-    groupCount.value = 320; // 关闭快速模式，恢复默认分组
+    groupCount.value = 320;
   }
   currentGroupIndex.value = 0;
   lastDrawnGroup.value = -2;
@@ -185,55 +200,91 @@ function handleDragOver(e) { e.currentTarget.classList.add('drag-over'); }
 function handleDrop(e) { e.currentTarget.classList.remove('drag-over'); if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]); }
 function handleFileSelect(e) { if (e.target.files[0]) processFile(e.target.files[0]); }
 
+// —— 修改：支持实时重算的逻辑 ——
 async function processFile(file) {
   const reader = new FileReader();
   reader.onload = async (e) => {
     originalImage.value = e.target.result;
-    const img = new Image();
-    img.src = originalImage.value;
-    await img.decode();
-
-    let useRaw = false;
-    let rawData = [];
-    if (img.width === 320 && img.height === 120) {
-      const cvs = document.createElement('canvas');
-      cvs.width = 320; cvs.height = 120;
-      const ctx = cvs.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      const px = ctx.getImageData(0, 0, 320, 120).data;
-      for (let i = 0; i < px.length; i += 4) {
-        const avg = (px[i] + px[i+1] + px[i+2]) / 3;
-        rawData.push(avg < 128 ? 1 : 0);
-      }
-      useRaw = true;
-    }
-
-    try {
-      if (useRaw) {
-        bitmapData.value = rawData;
-        isLocalProcess.value = true;
-        ElMessage.success('本地转换成功');
-      } else {
-        isLocalProcess.value = false;
-        const blob = await fetch(originalImage.value).then(r => r.blob());
-        const formData = new FormData();
-        formData.append('file', new File([blob], 'img.jpg'));
-        const res = await api.post('/api/splatoon-graffiti/img/process', formData);
-        bitmapData.value = Array.from(atob(res.data), c => c.charCodeAt(0));
-      }
-      drawCanvas();
-    } catch (err) { ElMessage.error('图片处理失败'); }
+    applyImageAlgorithm(); // 处理图像
   };
   reader.readAsDataURL(file);
 }
 
+function reProcessImage() {
+  if (originalImage.value) applyImageAlgorithm();
+}
+
+async function applyImageAlgorithm() {
+  const img = new Image();
+  img.src = originalImage.value;
+  await img.decode();
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 320;
+  canvas.height = 120;
+  const ctx = canvas.getContext('2d');
+
+  const scale = Math.min(320 / img.width, 120 / img.height);
+  const x = (320 - img.width * scale) / 2;
+  const y = (120 - img.height * scale) / 2;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, 320, 120);
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+
+  const imageData = ctx.getImageData(0, 0, 320, 120);
+  const data = imageData.data;
+  const grayscale = new Float32Array(320 * 120);
+
+  for (let i = 0; i < data.length; i += 4) {
+    grayscale[i / 4] = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+  }
+
+  const binaryData = new Uint8Array(320 * 120);
+  const radius = 1;
+  const bias = 12;
+
+  for (let row = 0; row < 120; row++) {
+    for (let col = 0; col < 320; col++) {
+      const idx = row * 320 + col;
+      const current = grayscale[idx];
+
+      let sum = 0, count = 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const ny = row + dy, nx = col + dx;
+          if (ny >= 0 && ny < 120 && nx >= 0 && nx < 320) {
+            sum += grayscale[ny * 320 + nx];
+            count++;
+          }
+        }
+      }
+      const localAvg = sum / count;
+
+      // 使用 blackThreshold.value 动态判定
+      if (current < blackThreshold.value || current < localAvg - bias) {
+        binaryData[idx] = 1;
+      } else {
+        binaryData[idx] = 0;
+      }
+    }
+  }
+
+  bitmapData.value = Array.from(binaryData);
+  nextTick(() => drawCanvas());
+}
+
 function drawCanvas() {
+  if (!processedCanvas.value) return;
   const ctx = processedCanvas.value.getContext('2d');
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 320, 120);
   ctx.fillStyle = '#000';
   bitmapData.value.forEach((p, i) => p && ctx.fillRect(i % 320, Math.floor(i / 320), 1, 1));
 }
 
+// —— 后续绘制控制逻辑保持不变 ——
 function startDrawingFromBeginning() {
   lastDrawnGroup.value = -2;
   currentGroupIndex.value = 0;
@@ -302,7 +353,7 @@ watch(groupCount, () => {
 </script>
 
 <style scoped>
-/* 保持所有原始样式不变 */
+/* 样式部分 100% 保持你原来的 */
 .splatoon-graffiti-page { padding: 30px; height: 100%; overflow-y: auto; background: linear-gradient(135deg, #0a0b10 0%, #121520 100%); }
 .page-header { margin-bottom: 40px; text-align: center; }
 .page-header h1 { color: #fff; font-size: 2.5rem; margin-bottom: 10px; background: linear-gradient(90deg, #4f64ff, #00c3ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
