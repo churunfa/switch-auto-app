@@ -173,7 +173,7 @@
                 <div class="completion-content">
                   <h3>绘制已停止</h3>
                   <p>已绘制到第 {{ lastDrawnGroup + 1 }} 组</p>
-                  <p class="completion-stats">共 {{ groupCount }} 组，完成 {{ Math.round(((lastDrawnGroup + 1) / groupCount) * 100) }}%</p>
+                  <p class="completion-stats">共 {{ groupCount }} 组，完成 {{ Math.round((lastDrawnGroup + 1) * 100 / groupCount) }}%</p>
                 </div>
               </div>
             </div>
@@ -193,7 +193,6 @@
     </div>
   </div>
 </template>
-
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { ElMessage } from 'element-plus';
@@ -221,16 +220,16 @@ const pixelsPerGroup = computed(() => Math.floor(320 * 120 / groupCount.value));
 const lastGroupPixels = computed(() => (320 * 120) % groupCount.value);
 const groupedData = computed(() => {
   if (bitmapData.value.length === 0) return [];
-  
+
   const groups = [];
   const totalPixels = 320 * 120;
   const regularGroupSize = pixelsPerGroup.value;
-  
+
   // 蛇形分组逻辑：先将原始像素数据转换为蛇形顺序
   const snakeOrderedData = [];
   const width = 320;
   const height = 120;
-  
+
   // 按蛇形顺序重新排列像素数据
   for (let y = 0; y < height; y++) {
     if (y % 2 === 0) {
@@ -247,17 +246,17 @@ const groupedData = computed(() => {
       }
     }
   }
-  
+
   // 然后按组大小分组
   for (let i = 0; i < groupCount.value; i++) {
     const startIndex = i * regularGroupSize;
-    const endIndex = i === groupCount.value - 1 
-      ? totalPixels 
+    const endIndex = i === groupCount.value - 1
+      ? totalPixels
       : startIndex + regularGroupSize;
-    
+
     groups.push(snakeOrderedData.slice(startIndex, endIndex));
   }
-  
+
   return groups;
 });
 
@@ -278,86 +277,105 @@ function handleDrop(event) {
   }
 }
 
-function handleFileSelect(event) {
+async function handleFileSelect(event) {
   const file = event.target.files[0];
   if (file) {
     processFile(file);
   }
 }
 
-function processFile(file) {
+async function processFile(file) {
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     originalImage.value = e.target.result;
     // 延迟处理以确保图片加载完成
-    setTimeout(processImage, 100);
+    await processImage();
   };
   reader.readAsDataURL(file);
 }
 
-function processImage() {
-  const img = new Image();
-  img.onload = () => {
-    imageWidth.value = img.width;
-    imageHeight.value = img.height;
+async function processImage() {
+  try {
+    // 创建表单数据
+    const formData = new FormData();
+    // 将data URL转换为Blob
+    const base64Data = originalImage.value.split(',')[1];
+    const binaryString = window.atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: 'image/jpeg' });
+    const file = new File([blob], 'uploaded_image.jpg', { type: 'image/jpeg' });
+    formData.append('file', file);
+
+    // 调用后端API处理图片
+    const response = await api.post('/api/splatoon-graffiti/img/process', formData, {
+      headers: {
+      }
+    });
     
+    if (!response.success) {
+      throw new Error(response.message || '图片处理失败');
+    }
+    
+    // 解码Base64字符串为字节数组
+    const bitmapBase64 = response.data;
+    const bitmapBytes = window.atob(bitmapBase64);
+    const bitmap = [];
+    for (let i = 0; i < bitmapBytes.length; i++) {
+      bitmap.push(bitmapBytes.charCodeAt(i));
+    }
+    
+    // 设置处理后的像素数据
+    bitmapData.value = bitmap;
+    
+    // 更新显示信息
+    imageWidth.value = 320;
+    imageHeight.value = 120;
+    processingMethod.value = '后端处理，Bayer抖动算法';
+    
+    // 在canvas上显示处理后的图像
     const canvas = processedCanvas.value;
     const ctx = canvas.getContext('2d');
     
-    // 计算缩放比例和偏移量以保持居中
-    const targetWidth = 320;
-    const targetHeight = 120;
-    const aspectRatio = img.width / img.height;
-    const targetRatio = targetWidth / targetHeight;
-    
-    let drawWidth, drawHeight, offsetX, offsetY;
-    
-    if (aspectRatio > targetRatio) {
-      // 图片较宽，以宽度为准
-      drawWidth = targetWidth;
-      drawHeight = targetWidth / aspectRatio;
-      offsetX = 0;
-      offsetY = (targetHeight - drawHeight) / 2;
-      processingMethod.value = '宽度适配，垂直居中';
-    } else {
-      // 图片较高，以高度为准
-      drawHeight = targetHeight;
-      drawWidth = targetHeight * aspectRatio;
-      offsetX = (targetWidth - drawWidth) / 2;
-      offsetY = 0;
-      processingMethod.value = '高度适配，水平居中';
-    }
-    
     // 清空画布并绘制背景（白色填充）
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, targetWidth, targetHeight);
+    ctx.fillRect(0, 0, 320, 120);
     
-    // 绘制图片
-    ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+    // 绘制处理后的黑白位图
+    for (let y = 0; y < 120; y++) {
+      for (let x = 0; x < 320; x++) {
+        const index = y * 320 + x;
+        const pixelValue = bitmap[index];
+        ctx.fillStyle = pixelValue === 1 ? '#000000' : '#ffffff';
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
     
-    // 转换为单色位图
-    convertToBitmap(ctx, targetWidth, targetHeight);
-  };
-  img.src = originalImage.value;
+  } catch (error) {
+    console.error('图片处理失败:', error);
+    ElMessage.error('图片处理失败: ' + error.message);
+  }
 }
 
-function convertToBitmap(ctx, width, height) {
-  const imageData = ctx.getImageData(0, 0, width, height);
-  const data = imageData.data;
-  const bitmap = [];
-  
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-    // 简单的亮度判断转为黑白
-    const brightness = (r + g + b) / 3;
-    const bit = brightness > 128 ? 0 : 1; // 亮色为0，暗色为1
-    bitmap.push(bit);
-  }
-  
-  bitmapData.value = bitmap;
-}
+// function convertToBitmap(ctx, width, height) {
+//   const imageData = ctx.getImageData(0, 0, width, height);
+//   const data = imageData.data;
+//   const bitmap = [];
+//   
+//   for (let i = 0; i < data.length; i += 4) {
+//     const r = data[i];
+//     const g = data[i + 1];
+//     const b = data[i + 2];
+//     // 简单的亮度判断转为黑白
+//     const brightness = (r + g + b) / 3;
+//     const bit = brightness > 128 ? 0 : 1; // 亮色为0，暗色为1
+//     bitmap.push(bit);
+//   }
+//   
+//   bitmapData.value = bitmap;
+// }
 
 // 绘制控制器
 let drawTimer = null;

@@ -100,11 +100,25 @@ export const api = {
     get: (path, options) => apiRequest(path, { method: 'GET', ...options }),
     
     // POST 请求
-    post: (path, data, options) => apiRequest(path, {
-        method: 'POST',
-        body: JSON.stringify(data),
-        ...options
-    }),
+    post: (path, data, options) => {
+        const headers = { 'Content-Type': 'application/json', ...options.headers };
+        let body = data;
+        
+        // 如果是 FormData 类型，不设置 Content-Type
+        if (data instanceof FormData) {
+            delete headers['Content-Type'];
+            body = data;
+        } else {
+            body = JSON.stringify(data);
+        }
+        
+        return apiRequest(path, {
+            method: 'POST',
+            body: body,
+            headers: headers,
+            ...options
+        });
+    },
     
     // PUT 请求
     put: (path, data, options) => apiRequest(path, {
