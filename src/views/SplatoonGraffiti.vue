@@ -29,7 +29,7 @@
             <h3>处理后图像 (320×120)</h3>
             <canvas ref="processedCanvas" width="320" height="120" class="preview-canvas"></canvas>
             <div class="processing-info">
-              <p>尺寸: 320 × 120 | 方式: {{ isLocalProcess ? '本地阈值解析' : '后端 Bayer 抖动' }}</p>
+              <p>尺寸: 320 × 120</p>
             </div>
           </div>
         </div>
@@ -42,7 +42,7 @@
             <label>绘制模式:</label>
             <div class="mode-switch-wrapper">
               <input type="checkbox" id="fastMode" v-model="fastMode" class="checkbox-input" />
-              <label for="fastMode" class="checkbox-label">快速绘制 (一次性绘制)</label>
+              <label for="fastMode" class="checkbox-label">快速绘制 (精准度有限)</label>
             </div>
           </div>
 
