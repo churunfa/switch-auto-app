@@ -310,10 +310,7 @@ async function processImage() {
     formData.append('file', file);
 
     // 调用后端API处理图片
-    const response = await api.post('/api/splatoon-graffiti/img/process', formData, {
-      headers: {
-      }
-    });
+    const response = await api.post('/api/splatoon-graffiti/img/process', formData, {});
     
     if (!response.success) {
       throw new Error(response.message || '图片处理失败');

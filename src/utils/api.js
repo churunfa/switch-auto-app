@@ -100,7 +100,7 @@ export const api = {
     get: (path, options) => apiRequest(path, { method: 'GET', ...options }),
     
     // POST 请求
-    post: (path, data, options) => {
+    post: (path, data, options = {}) => {
         const headers = { 'Content-Type': 'application/json', ...options.headers };
         let body = data;
         
