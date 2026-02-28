@@ -8,11 +8,11 @@ export function getApiEndpoint(path) {
     // 优先从 SERVER_PORT 环境变量获取后端端口，如果没有则使用默认值 8080
     const serverPort = import.meta.env.SERVER_PORT || '8080';
     const apiUrl = `http://localhost:${serverPort}`;
-    
+
     console.log('[API Debug] serverPort:', serverPort);
     console.log('[API Debug] apiUrl:', apiUrl);
     console.log('[API Debug] path:', path);
-    
+
     // 如果提供了路径，则返回完整URL
     if (path) {
         // 如果路径已经是完整URL，则直接返回
@@ -20,7 +20,7 @@ export function getApiEndpoint(path) {
             console.log('[API Debug] 返回完整URL:', path);
             return path;
         }
-        
+
         // 路径映射表 - 将简写映射到实际的API路径
         const pathMap = {
             'ALL_BASE_OPERATE': '/api/base-operate/all-base-operates',
@@ -28,9 +28,14 @@ export function getApiEndpoint(path) {
             'COMBINATION_GRAPH': '/api/combination-graph',
             'COMBINATION_GRAPH_EXEC': '/api/combination-graph/exec',
             'BUTTON_BINDING': '/api/button-binding',
-            'SPLATOON_GRAFFITI': '/api/splatoon-graffiti/draw'
+            'SPLATOON_GRAFFITI': '/api/splatoon-graffiti/draw',
+            'COMBINATION_GRAPH_STOP_ASYNC': '/api/combination-graph/stop-async-exec',
+            'COMBINATION_GRAPH_ALL': '/api/combination-graph/all-combination',
+            'COMBINATION_GRAPH_ASYNC_EXEC': '/api/combination-graph/async-exec',
+            'COMBINATION_GRAPH_ASYNC_EXEC_INFO': '/api/combination-graph/async-exec-info',
+            'COMBINATION_GRAPH_SET_LOOP': '/api/combination-graph/set-loop-graph',
         };
-        
+
         let normalizedPath;
         if (pathMap[path]) {
             // 使用映射表中的路径
@@ -42,12 +47,10 @@ export function getApiEndpoint(path) {
             // 其他情况，添加 /api/ 前缀
             normalizedPath = `/api/${path}`;
         }
-        
-        const result = `${apiUrl}${normalizedPath}`;
-        console.log('[API Debug] 拼接结果:', result);
-        return result;
+
+        return `${apiUrl}${normalizedPath}`;
     }
-    
+
     // 如果没有提供路径，返回基础URL
     console.log('[API Debug] 返回基础URL:', apiUrl);
     return apiUrl;
@@ -64,7 +67,7 @@ export function getFullApiUrl(path) {
 // 基础的 fetch 封装
 export async function apiRequest(path, options = {}) {
     const url = getFullApiUrl(path);
-    
+
     const defaultOptions = {
         headers: {
             'Content-Type': 'application/json',
@@ -72,22 +75,22 @@ export async function apiRequest(path, options = {}) {
         },
         ...options
     };
-    
+
     try {
         const response = await fetch(url, defaultOptions);
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const result = await response.json();
-        
+
         // 检查业务逻辑是否成功
         if (result && result.success === false) {
             const errorMessage = result.message || '请求失败';
             throw new Error(errorMessage);
         }
-        
+
         return result;
     } catch (error) {
         console.error('API request failed:', error);
@@ -99,12 +102,12 @@ export async function apiRequest(path, options = {}) {
 export const api = {
     // GET 请求
     get: (path, options) => apiRequest(path, { method: 'GET', ...options }),
-    
+
     // POST 请求
     post: (path, data, options = {}) => {
         const headers = { 'Content-Type': 'application/json', ...options.headers };
         let body = data;
-        
+
         // 如果是 FormData 类型，不设置 Content-Type
         if (data instanceof FormData) {
             delete headers['Content-Type'];
@@ -112,7 +115,7 @@ export const api = {
         } else {
             body = JSON.stringify(data);
         }
-        
+
         return apiRequest(path, {
             method: 'POST',
             body: body,
@@ -120,14 +123,14 @@ export const api = {
             ...options
         });
     },
-    
+
     // PUT 请求
     put: (path, data, options) => apiRequest(path, {
         method: 'PUT',
         body: JSON.stringify(data),
         ...options
     }),
-    
+
     // DELETE 请求
     delete: (path, options) => apiRequest(path, { method: 'DELETE', ...options })
 };
