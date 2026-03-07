@@ -167,7 +167,7 @@ const vClickOutside = {
 };
 
 const API_BASE = getApiEndpoint('COMBINATION_GRAPH');
-const BASE_OP_API = getApiEndpoint('BASE_OPERATE');
+const ALL_BASE_OPERATE = getApiEndpoint('ALL_BASE_OPERATE');
 
 // --- 数据状态 ---
 const projects = ref([]);
@@ -242,7 +242,7 @@ const initData = async () => {
     // ✨ 这里的 all-project 逻辑是必须的，用于填充下拉框
     const [projRes, baseRes] = await Promise.all([
       axios.get(`${API_BASE}/all-project`),
-      axios.get(BASE_OP_API)
+      axios.get(`${ALL_BASE_OPERATE}`)
     ]);
 
     projects.value = projRes.data.data || [];
