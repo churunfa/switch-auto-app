@@ -19,9 +19,6 @@
       <router-link to="/model-config" class="nav-item">
         <span class="nav-icon">🤖</span> AI 模型配置
       </router-link>
-      <router-link to="/automation" class="nav-item">
-        <span class="nav-icon">⚙️</span> 自动化任务
-      </router-link>
 <!--      <router-link to="/yolo" class="nav-item">-->
 <!--        <span class="nav-icon">👁️</span> YOLO 识别-->
 <!--      </router-link>-->

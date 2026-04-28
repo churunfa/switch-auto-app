@@ -4,7 +4,6 @@ import TopologyConfig from '../views/topology/TopologyConfig.vue';
 import ButtonBindingView from '../views/ButtonBindingView.vue';
 import SplatoonGraffiti from '../views/SplatoonGraffiti.vue';
 import ModelConfig from '../views/ModelConfig.vue';
-import AutomationTask from '../views/AutomationTask.vue';
 
 const routes = [
     {
@@ -40,12 +39,6 @@ const routes = [
         name: 'ModelConfig',
         component: ModelConfig,
         meta: { title: 'AI 模型配置' }
-    },
-    {
-        path: '/automation',
-        name: 'AutomationTask',
-        component: AutomationTask,
-        meta: { title: '自动化任务' }
     },
     // {
     //     path: '/yolo',
