@@ -21,7 +21,7 @@ export function getApiEndpoint(path) {
             return path;
         }
 
-        // 路径映射表 - 将简写映射到实际的 API 路径
+        // 路径映射表 - 将简写映射到实际的API路径
         const pathMap = {
             'ALL_BASE_OPERATE': '/api/base-operate/all-base-operates',
             'EXEC_BASE_OPERATE': '/api/base-operate/exec-base-operate',
@@ -34,10 +34,6 @@ export function getApiEndpoint(path) {
             'COMBINATION_GRAPH_ASYNC_EXEC': '/api/combination-graph/async-exec',
             'COMBINATION_GRAPH_ASYNC_EXEC_INFO': '/api/combination-graph/async-exec-info',
             'COMBINATION_GRAPH_SET_LOOP': '/api/combination-graph/set-loop-graph',
-            'ADD_MODEL': '/api/model/add-model',
-            'LIST_MODELS': '/api/model/list',
-            'DELETE_MODEL': '/api/model/delete',
-            'UPDATE_MODEL': '/api/model/update',
         };
 
         let normalizedPath;

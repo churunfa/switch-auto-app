@@ -3,7 +3,6 @@ import BaseOperate from '../views/BaseOperate.vue';
 import TopologyConfig from '../views/topology/TopologyConfig.vue';
 import ButtonBindingView from '../views/ButtonBindingView.vue';
 import SplatoonGraffiti from '../views/SplatoonGraffiti.vue';
-import ModelConfig from '../views/ModelConfig.vue';
 
 const routes = [
     {
@@ -33,12 +32,6 @@ const routes = [
         name: 'SplatoonGraffiti',
         component: SplatoonGraffiti,
         meta: { title: '斯普拉遁涂鸦' }
-    },
-    {
-        path: '/model-config',
-        name: 'ModelConfig',
-        component: ModelConfig,
-        meta: { title: 'AI 模型配置' }
     },
     // {
     //     path: '/yolo',
