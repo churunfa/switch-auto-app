@@ -3,6 +3,7 @@ import BaseOperate from '../views/BaseOperate.vue';
 import TopologyConfig from '../views/topology/TopologyConfig.vue';
 import ButtonBindingView from '../views/ButtonBindingView.vue';
 import SplatoonGraffiti from '../views/SplatoonGraffiti.vue';
+import GeneralImageDraw from '../views/GeneralImageDraw.vue';
 
 const routes = [
     {
@@ -32,6 +33,12 @@ const routes = [
         name: 'SplatoonGraffiti',
         component: SplatoonGraffiti,
         meta: { title: '斯普拉遁涂鸦' }
+    },
+    {
+        path: '/general-image-draw',
+        name: 'GeneralImageDraw',
+        component: GeneralImageDraw,
+        meta: { title: '通用图像绘制' }
     },
     // {
     //     path: '/yolo',

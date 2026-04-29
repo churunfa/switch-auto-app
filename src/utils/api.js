@@ -29,6 +29,7 @@ export function getApiEndpoint(path) {
             'COMBINATION_GRAPH_EXEC': '/api/combination-graph/exec',
             'BUTTON_BINDING': '/api/button-binding',
             'SPLATOON_GRAFFITI': '/api/splatoon-graffiti/draw',
+            'GENERAL_IMAGE_DRAW': '/api/general-image-draw/draw',
             'COMBINATION_GRAPH_STOP_ASYNC': '/api/combination-graph/stop-async-exec',
             'COMBINATION_GRAPH_ALL': '/api/combination-graph/all-combination',
             'COMBINATION_GRAPH_ASYNC_EXEC': '/api/combination-graph/async-exec',
