@@ -125,12 +125,27 @@
           </span>
         </h2>
         <div class="drawing-panel">
+          <div class="drawing-config">
+            <div class="config-item">
+              <label>按键按住时间 (ms):</label>
+              <input
+                  type="number"
+                  min="10"
+                  max="200"
+                  v-model.number="btnHoldTime"
+                  @input="validateBtnHoldTime"
+                  class="number-input-small"
+              />
+              <span class="input-hint">默认 50ms，范围 10-200ms</span>
+            </div>
+          </div>
+      
           <div class="drawing-actions">
             <button v-if="!isDrawing && !isPaused" @click="startDrawing" class="action-button primary large">
               🎯 开始绘制
             </button>
             <button v-if="isDrawing && !isPaused" @click="pauseDrawing" class="action-button secondary large">
-              ️ 暂停绘制
+              ⏸️ 暂停绘制
             </button>
             <button v-if="isPaused" @click="resumeDrawing" class="action-button primary large">
               ▶️ 继续绘制
@@ -139,7 +154,7 @@
               ⏹️ 停止绘制
             </button>
           </div>
-
+      
           <div class="drawing-status" v-if="isDrawing || isPaused">
             <div class="progress-bar">
               <div class="progress-fill" :style="{ width: `${drawingProgress}%` }"></div>
@@ -170,6 +185,16 @@ const outputHeight = ref(200);
 const colorCount = ref(16);
 const isProcessing = ref(false);
 const hasProcessed = ref(false); // 标记是否已经处理过图片
+const btnHoldTime = ref(50); // 按键按住时间，默认50ms
+
+// 验证按键按住时间范围
+function validateBtnHoldTime() {
+  if (btnHoldTime.value < 10) {
+    btnHoldTime.value = 10;
+  } else if (btnHoldTime.value > 200) {
+    btnHoldTime.value = 200;
+  }
+}
 
 // 实际使用的Canvas尺寸（只在点击处理后才更新）
 const currentWidth = ref(200);
@@ -581,7 +606,8 @@ async function continueDrawingLoop() {
       reset: false, // 首次绘制时重置
       groupSize: snakePixelData.length, // 像素总数
       colCount: outputWidth.value,
-      rowCount: outputHeight.value
+      rowCount: outputHeight.value,
+      btnHoldTime: btnHoldTime.value // 按键按住时间
     });
 
     currentGroupIndex.value++;
@@ -922,6 +948,52 @@ async function continueDrawingLoop() {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.drawing-config {
+  display: flex;
+  justify-content: center;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.config-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.config-item label {
+  color: #ddd;
+  font-weight: 500;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.number-input-small {
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 0.95rem;
+  width: 120px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.number-input-small:focus {
+  border-color: #4f64ff;
+  background: rgba(255, 255, 255, 0.12);
+  outline: none;
+}
+
+.config-item .input-hint {
+  color: #6b8aff;
+  font-size: 0.85rem;
+  white-space: nowrap;
 }
 
 .drawing-actions {

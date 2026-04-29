@@ -84,12 +84,12 @@
             <input
                 type="number"
                 min="10"
-                max="500"
+                max="200"
                 v-model.number="btnHoldTime"
                 @input="validateBtnHoldTime"
                 class="number-input-small"
             />
-            <p class="input-hint">默认 50ms，范围 10-500ms</p>
+            <p class="input-hint">默认 50ms，范围 10-200ms</p>
           </div>
         </div>
       </div>
@@ -172,8 +172,8 @@ const btnHoldTime = ref(50); // 按键按住时间，默认50ms
 function validateBtnHoldTime() {
   if (btnHoldTime.value < 10) {
     btnHoldTime.value = 10;
-  } else if (btnHoldTime.value > 500) {
-    btnHoldTime.value = 500;
+  } else if (btnHoldTime.value > 200) {
+    btnHoldTime.value = 200;
   }
 }
 
