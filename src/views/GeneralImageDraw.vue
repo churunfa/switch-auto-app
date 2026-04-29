@@ -73,8 +73,8 @@
             <img :src="originalImage" alt="原始图片" class="preview-image" />
           </div>
           <div class="processed-preview">
-            <h3>处理后图像 ({{ outputWidth }}×{{ outputHeight }})</h3>
-            <canvas ref="processedCanvas" :width="outputWidth" :height="outputHeight" class="preview-canvas"></canvas>
+            <h3>处理后图像 ({{ currentWidth }}×{{ currentHeight }}) <span v-if="!hasProcessed" class="waiting-hint">（等待处理）</span></h3>
+            <canvas ref="processedCanvas" :width="currentWidth" :height="currentHeight" class="preview-canvas"></canvas>
           </div>
         </div>
       </div>
@@ -103,10 +103,10 @@
       <div v-if="selectedColorIndex >= 0 && processedCanvas" class="pixel-preview-section">
         <h2>🔍 选中颜色的像素分布</h2>
         <div class="pixel-preview-container">
-          <canvas
-            ref="pixelPreviewCanvas"
-            :width="outputWidth"
-            :height="outputHeight"
+          <canvas 
+            ref="pixelPreviewCanvas" 
+            :width="currentWidth" 
+            :height="currentHeight" 
             class="pixel-preview-canvas"
           ></canvas>
           <div class="pixel-info">
@@ -165,10 +165,15 @@ const processedImageData = ref(null);
 const pixelPreviewCanvas = ref(null);
 
 // 配置参数
-const outputWidth = ref(100);
-const outputHeight = ref(100);
+const outputWidth = ref(200);
+const outputHeight = ref(200);
 const colorCount = ref(16);
 const isProcessing = ref(false);
+const hasProcessed = ref(false); // 标记是否已经处理过图片
+
+// 实际使用的Canvas尺寸（只在点击处理后才更新）
+const currentWidth = ref(200);
+const currentHeight = ref(200);
 
 // 颜色数据
 const extractedColors = ref([]);
@@ -242,14 +247,19 @@ async function processImage() {
 async function simulateImageProcessing() {
   return new Promise((resolve) => {
     setTimeout(() => {
+      // 更新实际Canvas尺寸
+      currentWidth.value = outputWidth.value;
+      currentHeight.value = outputHeight.value;
+      
       extractedColors.value = [];
       processedImageData.value = true;
-
+      hasProcessed.value = true;
+      
       // 在canvas上绘制处理后的图像
       nextTick(() => {
         processAndDrawImage();
       });
-
+      
       resolve();
     }, 1500);
   });
@@ -568,7 +578,7 @@ async function continueDrawingLoop() {
       pixelData: snakePixelData, // 蛇形扫描的二值化像素数据
       fastMode: fastMode.value,
       totalGroups: groupCount.value,
-      reset: currentGroupIndex.value === 0, // 首次绘制时重置
+      reset: false, // 首次绘制时重置
       groupSize: snakePixelData.length, // 像素总数
       colCount: outputWidth.value,
       rowCount: outputHeight.value
@@ -758,9 +768,15 @@ async function continueDrawingLoop() {
   text-align: center;
 }
 
-.original-preview h3, .processed-preview h3 {
-  color: #fff;
-  margin-bottom: 15px;
+.original-preview h3, .processed-preview h3 { 
+  color: #fff; 
+  margin-bottom: 15px; 
+}
+
+.waiting-hint {
+  color: #ffa500;
+  font-size: 0.9rem;
+  font-weight: normal;
 }
 
 .preview-image {
