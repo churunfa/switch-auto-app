@@ -78,6 +78,19 @@
             <label>每组像素数:</label>
             <span class="value-display">{{ pixelsPerGroup }} 像素/组</span>
           </div>
+
+          <div class="control-item">
+            <label>按键按住时间 (ms):</label>
+            <input
+                type="number"
+                min="10"
+                max="500"
+                v-model.number="btnHoldTime"
+                @input="validateBtnHoldTime"
+                class="number-input-small"
+            />
+            <p class="input-hint">默认 50ms，范围 10-500ms</p>
+          </div>
         </div>
       </div>
 
@@ -152,8 +165,17 @@ const processedCanvas = ref(null);
 const bitmapData = ref([]);
 const groupCount = ref(320);
 const fastMode = ref(false);
-const isLocalProcess = ref(false);
 const blackThreshold = ref(110); // —— 新增：滑块绑定的阈值 ——
+const btnHoldTime = ref(50); // 按键按住时间，默认50ms
+
+// 验证按键按住时间范围
+function validateBtnHoldTime() {
+  if (btnHoldTime.value < 10) {
+    btnHoldTime.value = 10;
+  } else if (btnHoldTime.value > 500) {
+    btnHoldTime.value = 500;
+  }
+}
 
 const isDrawing = ref(false);
 const isPaused = ref(false);
@@ -325,7 +347,10 @@ async function continueDrawingLoop() {
       fastMode: fastMode.value,
       totalGroups: groupCount.value,
       reset: currentGroupIndex.value === 0 || (isDrawingFromSpecificGroup.value && currentGroupIndex.value === gotoGroupIndex.value - 1),
-      groupSize: pixelsPerGroup.value, colCount: 320, rowCount: 120
+      groupSize: pixelsPerGroup.value,
+      colCount: 320,
+      rowCount: 120,
+      btnHoldTime: btnHoldTime.value // 按键按住时间
     });
 
     currentGroupIndex.value++;
@@ -393,6 +418,24 @@ watch(groupCount, () => {
 .option-desc { color: #aaa; font-size: 0.9rem; text-align: center; margin: 0; }
 .goto-input-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
 .goto-input-small { padding: 8px 12px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; background: rgba(255, 255, 255, 0.1); color: #fff; width: 60px; text-align: center; }
+
+.number-input-small {
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 0.95rem;
+  width: 120px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.number-input-small:focus {
+  border-color: #4f64ff;
+  background: rgba(255, 255, 255, 0.12);
+  outline: none;
+}
 .drawing-controls { display: flex; gap: 20px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap; }
 .action-button { padding: 15px 30px; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; min-width: 150px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .action-button:disabled { opacity: 0.5; cursor: not-allowed; }
